@@ -19,6 +19,36 @@ const NODE_R = {
   Topic:       3,
 }
 
+/**
+ * Pre-position nodes in concentric rings so the graph renders
+ * in a readable layout without relying on physics to spread them:
+ *   Ring 0 (r=0):   Developer  — pinned at center
+ *   Ring 1 (r=140): Repository — spaced evenly around developer
+ *   Ring 2 (r=260): Skill      — outer ring
+ *   Others:         random within inner area
+ */
+function layoutNodes(data) {
+  const byType = {}
+  for (const n of data.nodes) {
+    ;(byType[n.type] = byType[n.type] || []).push(n)
+  }
+
+  const circle = (nodes, r) =>
+    nodes.map((n, i) => {
+      const angle = (i / nodes.length) * 2 * Math.PI - Math.PI / 2
+      return { ...n, x: Math.cos(angle) * r, y: Math.sin(angle) * r, fx: Math.cos(angle) * r, fy: Math.sin(angle) * r }
+    })
+
+  const devs       = (byType.Developer  || []).map((n, i) => ({ ...n, x: 0, y: 0, fx: 0, fy: 0 }))
+  const repos      = circle(byType.Repository  || [], 140)
+  const skills     = circle(byType.Skill       || [], 260)
+  const maintainers = circle(byType.Maintainer || [], 320)
+  const issues     = (byType.Issue   || []).map((n, i) => ({ ...n, x: (Math.random()-0.5)*80, y: (Math.random()-0.5)*80 }))
+  const topics     = (byType.Topic   || []).map((n, i) => ({ ...n, x: (Math.random()-0.5)*100, y: (Math.random()-0.5)*100 }))
+
+  return { ...data, nodes: [...devs, ...repos, ...skills, ...maintainers, ...issues, ...topics] }
+}
+
 function displayName(node) {
   if (node.type === 'Repository') {
     const parts = (node.name || '').split('/')
@@ -40,18 +70,19 @@ export default function GraphPanel({ username, highlightIds = [] }) {
     if (!username) return
     fetch(`/api/graph/data?username=${username}`)
       .then(r => r.json())
-      .then(data => setGraphData(data))
+      .then(data => setGraphData(layoutNodes(data)))
   }, [username])
 
-  // Configure forces after data loads
+  // After layout is set, tune forces gently and zoom to fit
   useEffect(() => {
     const fg = fgRef.current
     if (!fg || !graphData.nodes.length) return
     try {
-      fg.d3Force('charge')?.strength(-180)
-      fg.d3Force('link')?.distance(70).strength(0.5)
-      fg.d3Force('center')?.strength(0.06)
+      fg.d3Force('charge')?.strength(-60)
+      fg.d3Force('link')?.distance(10).strength(0.05)
+      fg.d3Force('center')?.strength(0)
     } catch {}
+    setTimeout(() => fg.zoomToFit(600, 50), 500)
   }, [graphData.nodes.length])
 
   // Responsive sizing
@@ -180,11 +211,11 @@ export default function GraphPanel({ username, highlightIds = [] }) {
             linkDirectionalArrowRelPos={1}
             onNodeHover={node => setTooltip(node || null)}
             backgroundColor="#080d14"
-            d3AlphaDecay={0.02}
-            d3VelocityDecay={0.35}
-            cooldownTime={4000}
+            d3AlphaDecay={0.1}
+            d3VelocityDecay={0.9}
+            cooldownTime={1000}
             enableNodeDrag={true}
-            onEngineStop={() => fgRef.current?.zoomToFit(600, 40)}
+            onEngineStop={() => fgRef.current?.zoomToFit(400, 50)}
             nodePointerAreaPaint={(node, color, ctx) => {
               const r = (NODE_R[node.type] ?? 4) + 10
               ctx.fillStyle = color
