@@ -1,12 +1,18 @@
 import { useEffect, useRef, useState } from 'react'
 
 const NODE_COLORS = {
-  Developer:  '#da77f2',
+  Developer:  '#7c3aed',
   Repository: '#f0883e',
-  Skill:      '#58a6ff',
-  Issue:      '#3fb950',
-  Maintainer: '#ffa657',
-  Topic:      '#8b949e',
+  Skill:      '#2563eb',
+  Issue:      '#16a34a',
+  Maintainer: '#d97706',
+  Topic:      '#64748b',
+}
+
+// Explored repos (agent-discovered) render in teal
+function nodeColor(node) {
+  if (node.type === 'Repository' && node.props?.explored) return '#0891b2'
+  return NODE_COLORS[node.type] || '#64748b'
 }
 
 const NODE_R = {
@@ -47,7 +53,7 @@ function displayName(node) {
   return n.length > 18 ? n.slice(0, 17) + '…' : n
 }
 
-export default function GraphPanel({ username, highlightIds = [], visible = true, refreshTick = 0 }) {
+export default function GraphPanel({ username, highlightIds = [], visible = true, refreshTick = 0, hideHeader = false }) {
   const [graphData, setGraphData] = useState({ nodes: [], links: [] })
   const containerRef = useRef(null)
   const canvasRef    = useRef(null)
@@ -56,7 +62,6 @@ export default function GraphPanel({ username, highlightIds = [], visible = true
   const [drawTick, setDrawTick] = useState(0)
   const highlightSet = new Set(highlightIds)
 
-  // Build a node lookup map by id
   const nodeMap = {}
   for (const n of graphData.nodes) nodeMap[n.id] = n
 
@@ -71,7 +76,6 @@ export default function GraphPanel({ username, highlightIds = [], visible = true
       .catch(() => setFetching(false))
   }
 
-  // ── Fetch on mount, when panel becomes visible, or when refreshTick changes
   useEffect(() => {
     if (!visible) return
     fetchGraph()
@@ -86,19 +90,24 @@ export default function GraphPanel({ username, highlightIds = [], visible = true
     const { zoom, panX, panY } = stateRef.current
 
     ctx.clearRect(0, 0, canvas.width, canvas.height)
+
+    // Light background
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+
     ctx.save()
     ctx.translate(canvas.width / 2 + panX, canvas.height / 2 + panY)
     ctx.scale(zoom, zoom)
 
-    // Draw edges with arrowheads
+    // Draw edges
     const ARROW_LEN = 7
-    const ARROW_ANGLE = Math.PI / 6  // 30°
+    const ARROW_ANGLE = Math.PI / 6
     for (const link of graphData.links) {
       const src = nodeMap[link.source] || nodeMap[link.source?.id]
       const tgt = nodeMap[link.target] || nodeMap[link.target?.id]
       if (!src || !tgt) continue
       const hl = highlightSet.has(src.id) && highlightSet.has(tgt.id)
-      const color = hl ? 'rgba(255,215,0,0.9)' : 'rgba(255,255,255,0.35)'
+      const color = hl ? 'rgba(124,58,237,0.8)' : 'rgba(0,0,0,0.12)'
       const lw = (hl ? 2 : 1) / zoom
 
       const dx = tgt.x - src.x
@@ -108,12 +117,10 @@ export default function GraphPanel({ username, highlightIds = [], visible = true
       const ux = dx / len
       const uy = dy / len
 
-      // Stop line at the target node edge
       const tgtR = NODE_R[tgt.type] ?? 5
       const ex = tgt.x - ux * tgtR
       const ey = tgt.y - uy * tgtR
 
-      // Line
       ctx.beginPath()
       ctx.moveTo(src.x, src.y)
       ctx.lineTo(ex, ey)
@@ -121,7 +128,6 @@ export default function GraphPanel({ username, highlightIds = [], visible = true
       ctx.lineWidth = lw
       ctx.stroke()
 
-      // Arrowhead
       const aLen = ARROW_LEN / zoom
       ctx.beginPath()
       ctx.moveTo(ex, ey)
@@ -144,26 +150,26 @@ export default function GraphPanel({ username, highlightIds = [], visible = true
       const hl  = highlightSet.has(node.id)
       const isDev = node.type === 'Developer'
       const r   = NODE_R[node.type] ?? 5
-      const col = NODE_COLORS[node.type] || '#8b949e'
+      const col = nodeColor(node)
 
-      // Glow for dev / highlighted
       if (isDev || hl) {
-        ctx.shadowColor = hl ? '#ffd700' : col
-        ctx.shadowBlur  = 14 / zoom
+        ctx.shadowColor = hl ? col : col + '60'
+        ctx.shadowBlur  = 12 / zoom
       }
       ctx.beginPath()
       ctx.arc(node.x, node.y, r, 0, 2 * Math.PI)
-      ctx.fillStyle = hl ? '#ffd700' : col
+      ctx.fillStyle = hl ? col : col
+      ctx.globalAlpha = hl ? 1 : 0.85
       ctx.fill()
+      ctx.globalAlpha = 1
       ctx.shadowBlur = 0
 
       if (isDev) {
-        ctx.strokeStyle = 'rgba(255,255,255,0.85)'
-        ctx.lineWidth   = 1.5 / zoom
+        ctx.strokeStyle = '#ffffff'
+        ctx.lineWidth   = 2 / zoom
         ctx.stroke()
       }
 
-      // Labels
       const showLabel = isDev || hl || node.type === 'Repository' || node.type === 'Skill'
       if (!showLabel && zoom < 2.5) continue
       const label    = displayName(node)
@@ -173,9 +179,9 @@ export default function GraphPanel({ username, highlightIds = [], visible = true
       const lx       = node.x - tw / 2
       const ly       = node.y + r + 3 / zoom
 
-      ctx.fillStyle = 'rgba(8,13,20,0.85)'
+      ctx.fillStyle = 'rgba(255,255,255,0.9)'
       ctx.fillRect(lx - 2 / zoom, ly, tw + 4 / zoom, fontSize + 3 / zoom)
-      ctx.fillStyle   = hl ? '#ffd700' : isDev ? '#e0b8ff' : '#e2e8f0'
+      ctx.fillStyle   = hl ? col : isDev ? '#4c1d95' : '#374151'
       ctx.textAlign   = 'center'
       ctx.textBaseline = 'top'
       ctx.fillText(label, node.x, ly + 1 / zoom)
@@ -217,16 +223,12 @@ export default function GraphPanel({ username, highlightIds = [], visible = true
     const obs = new ResizeObserver(resize)
     obs.observe(container)
     resize()
-    // Fallback: redraw 400ms after data loads in case canvas wasn't sized yet
     const t = setTimeout(() => { resize() }, 400)
     return () => { obs.disconnect(); clearTimeout(t) }
   }, [graphData])
 
-  function redraw() {
-    setDrawTick(c => c + 1)
-  }
+  function redraw() { setDrawTick(c => c + 1) }
 
-  // ── Interaction ───────────────────────────────────────────────────────────
   function worldPos(e) {
     const canvas = canvasRef.current
     const rect   = canvas.getBoundingClientRect()
@@ -287,44 +289,50 @@ export default function GraphPanel({ username, highlightIds = [], visible = true
   }, {})
 
   return (
-    <div style={{ width: '100%', height: '100%', background: '#080d14', display: 'flex', flexDirection: 'column', fontFamily: 'Verdana, sans-serif' }}>
+    <div style={{ width: '100%', height: '100%', background: '#ffffff', display: 'flex', flexDirection: 'column', fontFamily: 'Verdana, sans-serif' }}>
 
       {/* Header */}
-      <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <span style={{ color: '#e2e8f0', fontSize: '11px', fontWeight: '700' }}>Graph — FalkorDB</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ color: '#475569', fontSize: '11px' }}>{graphData.nodes.length} nodes · {graphData.links.length} edges</span>
-          <button
-            onClick={fetchGraph}
-            title="Refresh graph"
-            style={{
-              background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px',
-              color: fetching ? '#7c3aed' : '#475569', fontSize: '14px', lineHeight: 1,
-              transition: 'color 0.2s',
-              animation: fetching ? 'spin 0.8s linear infinite' : 'none',
-            }}
-            onMouseEnter={e => { if (!fetching) e.currentTarget.style.color = '#a78bfa' }}
-            onMouseLeave={e => { if (!fetching) e.currentTarget.style.color = '#475569' }}
-          >↻</button>
+      {!hideHeader && (
+        <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(0,0,0,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, background: '#ffffff' }}>
+          <span style={{ color: '#1e293b', fontSize: '11px', fontWeight: '700' }}>Graph — FalkorDB</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ color: '#94a3b8', fontSize: '11px' }}>{graphData.nodes.length} nodes · {graphData.links.length} edges</span>
+            <button
+              onClick={fetchGraph}
+              title="Refresh graph"
+              style={{
+                background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px',
+                color: fetching ? '#7c3aed' : '#94a3b8', fontSize: '14px', lineHeight: 1,
+                transition: 'color 0.2s',
+                animation: fetching ? 'spin 0.8s linear infinite' : 'none',
+              }}
+              onMouseEnter={e => { if (!fetching) e.currentTarget.style.color = '#7c3aed' }}
+              onMouseLeave={e => { if (!fetching) e.currentTarget.style.color = '#94a3b8' }}
+            >↻</button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Legend */}
-      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', padding: '6px 16px', borderBottom: '1px solid rgba(255,255,255,0.04)', flexShrink: 0 }}>
+      <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', padding: '6px 16px', borderBottom: '1px solid rgba(0,0,0,0.06)', flexShrink: 0, background: '#fafafa' }}>
         {Object.entries(NODE_COLORS).map(([type, color]) =>
           typeCounts[type] ? (
             <span key={type} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#64748b' }}>
               <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, display: 'inline-block' }} />
-              {type} <strong style={{ color: '#94a3b8' }}>{typeCounts[type]}</strong>
+              {type} <strong style={{ color: '#374151' }}>{typeCounts[type]}</strong>
             </span>
           ) : null
         )}
+        <span style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#64748b' }}>
+          <span style={{ width: 7, height: 7, borderRadius: '50%', background: '#0891b2', display: 'inline-block' }} />
+          Explored
+        </span>
       </div>
 
       {/* Canvas */}
       <div ref={containerRef} style={{ flex: 1, overflow: 'hidden', position: 'relative', cursor: 'grab' }}>
         {graphData.nodes.length === 0 ? (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#374151', fontSize: '12px' }}>
+          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#cbd5e1', fontSize: '12px' }}>
             Loading graph…
           </div>
         ) : (
@@ -341,20 +349,20 @@ export default function GraphPanel({ username, highlightIds = [], visible = true
 
         {/* Tooltip */}
         {tooltip && (
-          <div style={{ position: 'absolute', top: 10, right: 10, background: '#10182a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '10px', padding: '12px 14px', fontSize: '12px', color: '#e6edf3', pointerEvents: 'none', zIndex: 10, maxWidth: '200px', boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
-            <div style={{ display: 'inline-block', background: (NODE_COLORS[tooltip.type] || '#8b949e') + '22', color: NODE_COLORS[tooltip.type] || '#8b949e', borderRadius: '8px', padding: '1px 8px', fontSize: '10px', fontWeight: '700', marginBottom: '6px' }}>{tooltip.type}</div>
+          <div style={{ position: 'absolute', top: 10, right: 10, background: '#ffffff', border: '1px solid rgba(0,0,0,0.1)', borderRadius: '10px', padding: '12px 14px', fontSize: '12px', color: '#1e293b', pointerEvents: 'none', zIndex: 10, maxWidth: '200px', boxShadow: '0 4px 16px rgba(0,0,0,0.1)' }}>
+            <div style={{ display: 'inline-block', background: (NODE_COLORS[tooltip.type] || '#64748b') + '18', color: NODE_COLORS[tooltip.type] || '#64748b', borderRadius: '8px', padding: '1px 8px', fontSize: '10px', fontWeight: '700', marginBottom: '6px' }}>{tooltip.type}</div>
             <div style={{ fontWeight: '700', marginBottom: '4px', wordBreak: 'break-word' }}>{tooltip.name}</div>
             {Object.entries(tooltip.props || {}).map(([k, v]) =>
               v != null ? (
                 <div key={k} style={{ color: '#64748b', fontSize: '11px', marginTop: '2px' }}>
-                  <span style={{ color: '#58a6ff' }}>{k}:</span> {String(v)}
+                  <span style={{ color: '#2563eb' }}>{k}:</span> {String(v)}
                 </div>
               ) : null
             )}
           </div>
         )}
 
-        <div style={{ position: 'absolute', bottom: 8, left: 12, color: '#1e2a3a', fontSize: '10px', pointerEvents: 'none' }}>
+        <div style={{ position: 'absolute', bottom: 8, left: 12, color: '#e2e8f0', fontSize: '10px', pointerEvents: 'none' }}>
           Scroll to zoom · Drag to pan · Hover for details
         </div>
         <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>

@@ -1,160 +1,299 @@
 import { useParams, useNavigate } from 'react-router-dom'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import ChatPanel from '../components/ChatPanel.jsx'
 import SessionHistory from '../components/SessionHistory.jsx'
 import GraphPanel from '../components/GraphPanel.jsx'
+import ExplorationPanel from '../components/ExplorationPanel.jsx'
 
+const FONT = 'Verdana, Geneva, Tahoma, sans-serif'
 const SESSION_ID = `session_${Date.now()}`
-const SKILLS = ['python', 'javascript', 'typescript', 'java', 'go', 'dart', 'html']
 
+const SKILLS = ['python', 'javascript', 'typescript', 'java', 'go', 'dart', 'html']
 const SKILL_COLORS = {
   python: '#3b82f6', javascript: '#f59e0b', typescript: '#06b6d4',
   java: '#ef4444', go: '#22d3ee', dart: '#a78bfa', html: '#fb923c',
 }
 
+/* ── Mini decorative graph SVG shown in sidebar ── */
+function MiniGraphSVG() {
+  const cx = 90, cy = 72
+  const repos = Array.from({ length: 10 }, (_, i) => {
+    const a = (i / 10) * 2 * Math.PI - Math.PI / 2
+    return { x: cx + Math.cos(a) * 44, y: cy + Math.sin(a) * 38 }
+  })
+  const skills = [
+    { x: 20, y: 20 }, { x: 160, y: 20 }, { x: 20, y: 124 },
+    { x: 160, y: 124 }, { x: 90, y: 10 }, { x: 10, y: 72 }, { x: 170, y: 72 },
+  ]
+  return (
+    <svg width="180" height="144" viewBox="0 0 180 144" style={{ display: 'block' }}>
+      {/* skill edges */}
+      {skills.map((s, i) => (
+        <line key={`se${i}`} x1={cx} y1={cy} x2={s.x} y2={s.y}
+          stroke="rgba(124,58,237,0.15)" strokeWidth="1" />
+      ))}
+      {/* repo edges */}
+      {repos.map((r, i) => (
+        <line key={`re${i}`} x1={cx} y1={cy} x2={r.x} y2={r.y}
+          stroke="rgba(0,0,0,0.08)" strokeWidth="0.8" />
+      ))}
+      {/* repo nodes */}
+      {repos.map((r, i) => (
+        <circle key={`rn${i}`} cx={r.x} cy={r.y} r="5"
+          fill="#f0883e" opacity="0.85"
+          style={{ animation: `nodeFloat 3s ease-in-out ${i * 0.3}s infinite` }} />
+      ))}
+      {/* skill nodes */}
+      {skills.map((s, i) => (
+        <circle key={`sn${i}`} cx={s.x} cy={s.y} r="4"
+          fill="#3b82f6" opacity="0.9"
+          style={{ animation: `nodeFloat 2.5s ease-in-out ${i * 0.25}s infinite` }} />
+      ))}
+      {/* developer node */}
+      <circle cx={cx} cy={cy} r="10" fill="#7c3aed" />
+      <circle cx={cx} cy={cy} r="10" fill="none" stroke="white" strokeWidth="1.5" opacity="0.6" />
+    </svg>
+  )
+}
+
 export default function Search() {
   const { username } = useParams()
   const navigate = useNavigate()
-  const [showGraph, setShowGraph] = useState(true)
-  const [highlightIds, setHighlightIds] = useState([])
+  const [showModal, setShowModal] = useState(false)
   const [historyTick, setHistoryTick] = useState(0)
   const [graphTick, setGraphTick] = useState(0)
+  const [graphMeta, setGraphMeta] = useState({ nodes: 0, edges: 0 })
+
+  /* fetch node/edge counts for sidebar badge */
+  useEffect(() => {
+    if (!username) return
+    fetch(`/api/graph/data?username=${username}`)
+      .then(r => r.json())
+      .then(d => setGraphMeta({ nodes: d.nodes?.length || 0, edges: d.links?.length || 0 }))
+      .catch(() => {})
+  }, [username, graphTick])
 
   return (
-    <div style={{
-      display: 'flex', height: '100vh', overflow: 'hidden',
-      background: '#0d1117', fontFamily: 'Verdana, Geneva, Tahoma, sans-serif',
-    }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: '#f9fafb', fontFamily: FONT }}>
+
       {/* ── Sidebar ── */}
       <aside style={{
         width: '220px', minWidth: '220px',
-        background: '#0a0f1a',
-        borderRight: '1px solid rgba(255,255,255,0.06)',
+        background: '#ffffff', borderRight: '1px solid #e5e7eb',
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        animation: 'slideInLeft 0.35s ease both',
       }}>
+
         {/* Brand */}
-        <div style={{ padding: '16px 18px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+        <div style={{ padding: '16px 18px', borderBottom: '1px solid #f3f4f6' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
               width: '32px', height: '32px', borderRadius: '9px', flexShrink: 0,
-              background: 'linear-gradient(135deg, #7c3aed, #2563eb)',
+              background: '#7c3aed',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px',
             }}>🔗</div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ color: '#e2e8f0', fontWeight: '700', fontSize: '14px', letterSpacing: '-0.01em' }}>ContriGraph</div>
-              <div style={{ color: '#7c3aed', fontSize: '11px', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{username}</div>
+              <div style={{ color: '#111827', fontWeight: '800', fontSize: '13px', fontFamily: FONT }}>ContriGraph</div>
+              <div style={{ color: '#7c3aed', fontSize: '11px', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: FONT }}>@{username}</div>
+            </div>
+          </div>
+        </div>
+
+        {/* ── Knowledge Graph preview card ── */}
+        <div style={{ padding: '12px 14px', borderBottom: '1px solid #f3f4f6' }}>
+          <div style={{ color: '#9ca3af', fontSize: '10px', fontWeight: '700', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: '8px', fontFamily: FONT }}>
+            Knowledge Graph
+          </div>
+          <div
+            onClick={() => setShowModal(true)}
+            style={{
+              borderRadius: '10px', border: '1px solid #e5e7eb',
+              background: '#fafafa', overflow: 'hidden', cursor: 'pointer',
+              transition: 'all 0.2s ease',
+              animation: 'fadeInUp 0.4s ease 0.1s both',
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.borderColor = 'rgba(124,58,237,0.35)'
+              e.currentTarget.style.boxShadow = '0 4px 16px rgba(124,58,237,0.12)'
+              e.currentTarget.style.transform = 'translateY(-1px)'
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.borderColor = '#e5e7eb'
+              e.currentTarget.style.boxShadow = 'none'
+              e.currentTarget.style.transform = 'translateY(0)'
+            }}
+          >
+            <MiniGraphSVG />
+            {/* Footer strip */}
+            <div style={{
+              padding: '7px 10px', background: '#ffffff',
+              borderTop: '1px solid #f3f4f6',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+              <div style={{ display: 'flex', gap: '10px' }}>
+                <span style={{ fontSize: '10px', color: '#6b7280', fontFamily: FONT }}>
+                  <strong style={{ color: '#111827' }}>{graphMeta.nodes}</strong> nodes
+                </span>
+                <span style={{ fontSize: '10px', color: '#6b7280', fontFamily: FONT }}>
+                  <strong style={{ color: '#111827' }}>{graphMeta.edges}</strong> edges
+                </span>
+              </div>
+              <span style={{
+                fontSize: '9px', color: '#7c3aed', fontWeight: '700',
+                fontFamily: FONT, letterSpacing: '0.04em',
+              }}>EXPAND ↗</span>
             </div>
           </div>
         </div>
 
         {/* Skills */}
-        <div style={{ padding: '16px 18px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <div style={{ color: '#475569', fontSize: '10px', fontWeight: '700', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '10px' }}>
-            Skills
-          </div>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
-            {SKILLS.map(s => (
+        <div style={{ padding: '14px 18px', borderBottom: '1px solid #f3f4f6' }}>
+          <div style={{ color: '#9ca3af', fontSize: '10px', fontWeight: '700', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: '9px', fontFamily: FONT }}>Skills</div>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '5px' }}>
+            {SKILLS.map((s, i) => (
               <span key={s} style={{
-                padding: '3px 9px', borderRadius: '6px', fontSize: '11px', fontWeight: '500',
+                padding: '3px 8px', borderRadius: '5px', fontSize: '10px', fontWeight: '600',
                 background: (SKILL_COLORS[s] || '#7c3aed') + '18',
-                color: SKILL_COLORS[s] || '#a78bfa',
+                color: SKILL_COLORS[s] || '#7c3aed',
                 border: `1px solid ${(SKILL_COLORS[s] || '#7c3aed')}30`,
+                fontFamily: FONT,
+                opacity: 0, animation: `fadeIn 0.3s ease ${i * 0.04}s both`,
               }}>{s}</span>
             ))}
           </div>
         </div>
 
-        {/* Graph stats */}
-        <div style={{ padding: '12px 18px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <div style={{ color: '#475569', fontSize: '10px', fontWeight: '700', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '10px' }}>
-            Graph
-          </div>
-          {[
-            { label: 'Repositories', value: '40', color: '#f0883e' },
-            { label: 'Skills', value: '7', color: '#58a6ff' },
-            { label: 'Connections', value: '80', color: '#a78bfa' },
-          ].map(stat => (
-            <div key={stat.label} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '7px' }}>
-              <span style={{ color: '#64748b', fontSize: '12px' }}>{stat.label}</span>
-              <span style={{ color: stat.color, fontWeight: '700', fontSize: '12px' }}>{stat.value}</span>
-            </div>
-          ))}
-        </div>
-
-        {/* Session History */}
+        {/* History */}
         <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ padding: '14px 18px 8px', color: '#475569', fontSize: '10px', fontWeight: '700', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-            History
-          </div>
+          <div style={{ padding: '14px 18px 8px', color: '#9ca3af', fontSize: '10px', fontWeight: '700', letterSpacing: '0.07em', textTransform: 'uppercase', fontFamily: FONT }}>History</div>
           <SessionHistory username={username} refreshTick={historyTick} />
         </div>
 
-        {/* Logout — pinned to bottom */}
-        <div style={{ padding: '12px 18px', borderTop: '1px solid rgba(255,255,255,0.05)', flexShrink: 0 }}>
+        {/* Logout */}
+        <div style={{ padding: '12px 18px', borderTop: '1px solid #f3f4f6', flexShrink: 0 }}>
           <button
-            onClick={() => {
-              try { localStorage.removeItem(`contrigraph-chat-${username}`) } catch {}
-              navigate('/')
-            }}
+            onClick={() => { try { localStorage.removeItem(`contrigraph-chat-${username}`) } catch {} navigate('/') }}
             style={{
               width: '100%', padding: '8px', borderRadius: '7px', fontSize: '11px',
-              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-              color: '#64748b', cursor: 'pointer', fontFamily: 'inherit',
+              background: 'transparent', border: '1px solid #e5e7eb',
+              color: '#9ca3af', cursor: 'pointer', fontFamily: FONT,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-              transition: 'all 0.15s',
+              transition: 'all 0.18s ease',
             }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)'; e.currentTarget.style.color = '#f87171' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#64748b' }}
-          >
-            ⏏ Log out
-          </button>
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#fca5a5'; e.currentTarget.style.color = '#ef4444'; e.currentTarget.style.background = '#fef2f2' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.color = '#9ca3af'; e.currentTarget.style.background = 'transparent' }}
+          >⏏ Log out</button>
         </div>
       </aside>
 
-      {/* ── Main ── */}
+      {/* ── Main — full width chat ── */}
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
+
         {/* Topbar */}
         <div style={{
           padding: '0 24px', height: '52px', flexShrink: 0,
-          borderBottom: '1px solid rgba(255,255,255,0.06)',
-          background: 'rgba(10,15,26,0.8)', backdropFilter: 'blur(12px)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          borderBottom: '1px solid #e5e7eb', background: '#ffffff',
+          display: 'flex', alignItems: 'center', gap: '10px',
+          animation: 'fadeIn 0.35s ease both',
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span style={{ color: '#94a3b8', fontSize: '13px', fontWeight: '500' }}>Find Open Source Issues</span>
-            <span style={{
-              background: 'rgba(124,58,237,0.15)', color: '#a78bfa',
-              border: '1px solid rgba(124,58,237,0.25)',
-              borderRadius: '20px', padding: '1px 10px', fontSize: '11px', fontWeight: '600',
-            }}>AI Agent</span>
-          </div>
-          <div style={{ display: 'flex', gap: '8px' }}>
-            <button
-              onClick={() => setShowGraph(v => !v)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '6px',
-                padding: '6px 14px', borderRadius: '8px', fontSize: '12px', fontWeight: '500',
-                cursor: 'pointer', transition: 'all 0.15s', fontFamily: 'inherit',
-                background: showGraph ? 'rgba(124,58,237,0.15)' : 'rgba(255,255,255,0.04)',
-                border: showGraph ? '1px solid rgba(124,58,237,0.3)' : '1px solid rgba(255,255,255,0.08)',
-                color: showGraph ? '#a78bfa' : '#64748b',
-              }}
-            >
-              <span>🕸</span> {showGraph ? 'Graph On' : 'Graph Off'}
-            </button>
-          </div>
+          <span style={{ color: '#374151', fontSize: '13px', fontWeight: '600', fontFamily: FONT }}>Find Open Source Issues</span>
+          <span style={{
+            background: '#ede9fe', color: '#7c3aed', border: '1px solid #ddd6fe',
+            borderRadius: '20px', padding: '2px 9px', fontSize: '10px', fontWeight: '700',
+            fontFamily: FONT, letterSpacing: '0.04em',
+          }}>AI AGENT</span>
         </div>
 
-        {/* Content */}
-        <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
-          <div style={{ flex: showGraph ? '0 0 55%' : '1', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            <ChatPanel username={username} sessionId={SESSION_ID} onToolCall={() => {}} onAgentDone={() => { setHistoryTick(t => t + 1); setGraphTick(t => t + 1) }} />
+        {/* Chat + Exploration side by side */}
+        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', minWidth: 0 }}>
+          <div style={{ flex: 1, overflow: 'hidden', minWidth: 0 }}>
+            <ChatPanel
+              username={username}
+              sessionId={SESSION_ID}
+              onToolCall={() => {}}
+              onAgentDone={() => { setHistoryTick(t => t + 1); setGraphTick(t => t + 1) }}
+            />
           </div>
-          <div style={{ flex: 1, borderLeft: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden', display: showGraph ? 'block' : 'none' }}>
-            <GraphPanel username={username} highlightIds={highlightIds} visible={showGraph} refreshTick={graphTick} />
-          </div>
+          <ExplorationPanel username={username} refreshTick={graphTick} />
         </div>
       </main>
+
+      {/* ── Full-screen graph modal overlay ── */}
+      {showModal && (
+        <div style={{
+          position: 'fixed', inset: 0, zIndex: 200,
+          background: 'rgba(0,0,0,0.55)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          animation: 'fadeIn 0.2s ease both',
+          padding: '24px',
+        }}
+          onClick={e => { if (e.target === e.currentTarget) setShowModal(false) }}
+        >
+          <div style={{
+            width: '100%', maxWidth: '1200px', height: '90vh',
+            background: '#ffffff', borderRadius: '16px',
+            overflow: 'hidden', display: 'flex', flexDirection: 'column',
+            boxShadow: '0 24px 80px rgba(0,0,0,0.3)',
+            animation: 'modalIn 0.3s cubic-bezier(0.16,1,0.3,1) both',
+            position: 'relative',
+          }}>
+
+            {/* Modal header */}
+            <div style={{
+              padding: '14px 20px', borderBottom: '1px solid #e5e7eb',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              flexShrink: 0, background: '#ffffff',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{
+                  width: '28px', height: '28px', borderRadius: '8px',
+                  background: '#7c3aed', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', fontSize: '13px',
+                }}>🕸</div>
+                <span style={{ fontWeight: '800', fontSize: '14px', color: '#111827', fontFamily: FONT }}>
+                  Knowledge Graph
+                </span>
+                <span style={{
+                  fontSize: '10px', color: '#7c3aed', fontWeight: '700',
+                  background: '#ede9fe', border: '1px solid #ddd6fe',
+                  padding: '2px 8px', borderRadius: '20px', fontFamily: FONT,
+                }}>FalkorDB</span>
+                <span style={{ fontSize: '11px', color: '#9ca3af', fontFamily: FONT }}>
+                  {graphMeta.nodes} nodes · {graphMeta.edges} edges
+                </span>
+              </div>
+              <button
+                onClick={() => setShowModal(false)}
+                style={{
+                  background: '#f3f4f6', border: 'none', borderRadius: '8px',
+                  width: '32px', height: '32px', fontSize: '16px',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center',
+                  justifyContent: 'center', color: '#6b7280',
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = '#fee2e2'; e.currentTarget.style.color = '#ef4444' }}
+                onMouseLeave={e => { e.currentTarget.style.background = '#f3f4f6'; e.currentTarget.style.color = '#6b7280' }}
+              >✕</button>
+            </div>
+
+            {/* Graph canvas — full remaining space */}
+            <div style={{ flex: 1, overflow: 'hidden' }}>
+              <GraphPanel username={username} visible={true} refreshTick={graphTick} hideHeader={true} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes nodeFloat {
+          0%, 100% { transform: translateY(0); }
+          50%       { transform: translateY(-3px); }
+        }
+        @keyframes modalIn {
+          from { opacity: 0; transform: scale(0.96) translateY(12px); }
+          to   { opacity: 1; transform: scale(1) translateY(0); }
+        }
+      `}</style>
     </div>
   )
 }

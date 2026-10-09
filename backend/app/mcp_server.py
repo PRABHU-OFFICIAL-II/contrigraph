@@ -25,7 +25,13 @@ async def _dispatch(name: str, args: dict):
 
         # If empty, auto-ingest issues for repos matching the user's skills then retry
         if not issues:
-            repos_to_ingest = g.get_repos_without_issues(username, limit=10)
+            repos_to_ingest = g.get_repos_without_issues(username, limit=5)
+            # Fallback: if no external skill-matched repos exist yet, seed well-known Python repos
+            if not repos_to_ingest:
+                repos_to_ingest = [
+                    "psf/requests", "pallets/flask", "encode/httpx",
+                    "tiangolo/fastapi", "pypa/pip",
+                ]
             print(f"[find_matching_issues] no issues — auto-ingesting {repos_to_ingest}")
             for repo in repos_to_ingest:
                 try:

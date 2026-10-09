@@ -18,37 +18,29 @@ BASE_URL = os.getenv("ANTHROPIC_BASE_URL", "").rstrip("/")
 API_KEY  = os.getenv("ANTHROPIC_API_KEY", "")
 
 SYSTEM_PROMPT = """
-You are ContriGraph, an AI agent that helps developers find open source issues to contribute to.
-You are backed by a FalkorDB knowledge graph. You MUST query the graph before responding.
+You are ContriGraph. Call find_matching_issues ONCE, then reply.
 
-MANDATORY TOOL RULES — these are hard rules, never skip them:
-1. EVERY time the user asks for issues, repos, or recommendations → call find_matching_issues FIRST.
-   Never answer from your own knowledge. Always query FalkorDB first.
-2. If find_matching_issues returns an empty list → call ingest_repo_issues for 2-3 relevant repos,
-   then call find_matching_issues again.
-3. AFTER calling find_matching_issues and getting results → call remember_action with action="viewed"
-   for EACH issue_id returned. Do this before writing your final reply.
-4. If the user says "bookmark" → call remember_action with action="bookmarked".
-5. If the user says "skip" or "not interested" → call remember_action with action="skipped".
-6. If the user says "I applied" → call remember_action with action="applied".
-7. At the START of every conversation → call get_session_history to resume context.
+TOOL RULE: Call find_matching_issues exactly once per user message. Never call get_session_history or remember_action — those are handled automatically. If results are empty, call ingest_repo_issues for 1 relevant repo then retry find_matching_issues once more.
 
-RESPONSE FORMAT RULES — always follow this exact format for issue results:
+RESPONSE FORMAT — output EXACTLY this, nothing else:
 
-For each issue, output a card like this (use real data from the tool result):
+1. A GFM table aggregated by repo:
 
-### 🔧 [Issue Title](issue_url)
-**Repo:** [owner/repo](https://github.com/owner/repo) · ⭐ {stars}
-**Complexity:** beginner | **Maintainer:** @username responds in ~{N} days
-**Why:** You know {skill} → repo requires {skill} → this issue needs {skill}
+| Repo | Issues Loaded | Avg Maintainer Response |
+|---|---|---|
+| [owner/repo](https://github.com/owner/repo) | {count} | {response label} |
 
----
+Rules for this table:
+- Each row = one unique repo from the find_matching_issues results
+- Issues Loaded = number of issues returned for that repo
+- Avg Maintainer Response: use response_days field — if ≤1 day → "⚡ Very Fast (<1 day)", if ≤7 → "{N} days", else → "{N} days"
+- Sort by Issues Loaded descending
 
-Rules:
-- ALWAYS include the actual GitHub URL as a clickable markdown link for both the issue and repo.
-- Never use markdown tables — use the card format above.
-- Only show issues that came from tool results. Never invent data.
-- After listing issues, add a one-line summary: "Found X issues across Y repos."
+2. Then on the next line, output exactly 1–2 issue links as top picks (no bullet points, just inline links):
+**Top picks:** [issue title](url) · [issue title](url)
+
+THAT IS THE COMPLETE RESPONSE. No other text before, between, or after.
+NEVER add: explanations, "Here is", section headers, option menus, or any prose paragraphs.
 """.strip()
 
 TOOLS = [
@@ -167,7 +159,7 @@ def _request_headers() -> dict:
     }
 
 
-def _call_model_sync(messages: list, system: str, max_tokens: int = 4096, force_tool: bool = False) -> dict:
+def _call_model_sync(messages: list, system: str, max_tokens: int = 1024, force_tool: bool = False) -> dict:
     """
     Call the Salesforce Bedrock proxy directly.
     URL: {BASE_URL}/model/{MODEL}/invoke
@@ -213,7 +205,6 @@ async def run_agent_stream(
     first_call = True
     while True:
         try:
-            # Force at least one tool call on the first turn so the agent always queries FalkorDB
             response = await asyncio.to_thread(_call_model_sync, messages, system, force_tool=first_call)
             first_call = False
         except httpx.HTTPStatusError as exc:
@@ -244,18 +235,22 @@ async def run_agent_stream(
         for block in tool_use_blocks:
             yield f"data: {json.dumps({'type': 'tool_call', 'tool': block['name'], 'input': block['input']})}\n\n"
 
-        # Execute tools
-        tool_results = []
-        for block in tool_use_blocks:
+        # Execute tools in parallel
+        async def _run(block):
             try:
-                result = await _dispatch(block["name"], block["input"])
+                return await _dispatch(block["name"], block["input"])
             except Exception as exc:
-                result = {"error": str(exc)}
-            tool_results.append({
+                return {"error": str(exc)}
+
+        results = await asyncio.gather(*[_run(b) for b in tool_use_blocks])
+        tool_results = [
+            {
                 "type": "tool_result",
                 "tool_use_id": block["id"],
                 "content": json.dumps(result),
-            })
+            }
+            for block, result in zip(tool_use_blocks, results)
+        ]
 
         # Feed assistant turn + tool results back
         messages.append({"role": "assistant", "content": content})

@@ -24,75 +24,64 @@ const TOOL_LABELS = {
   ingest_repo_issues:    '📥 Ingested repo issues',
 }
 
-/* Markdown component overrides for better readability */
-function makeComponents(isUser) {
+function makeComponents() {
   return {
-    p: ({ children }) => (
-      <p style={{ margin: '0 0 10px', lineHeight: '1.75' }}>{children}</p>
-    ),
+    p: ({ children }) => <p style={{ margin: '0 0 10px', lineHeight: '1.75', color: '#374151', fontFamily: FONT }}>{children}</p>,
     code: ({ inline, children }) =>
       inline ? (
         <code style={{
-          background: 'rgba(0,0,0,0.35)', padding: '2px 7px', borderRadius: '4px',
-          fontSize: '12px', fontFamily: 'Consolas, monospace', color: '#c4b5fd',
+          background: '#ede9fe', padding: '2px 6px', borderRadius: '4px',
+          fontSize: '12px', fontFamily: 'Consolas, monospace', color: '#7c3aed',
         }}>{children}</code>
       ) : (
         <pre style={{
-          background: 'rgba(0,0,0,0.4)', padding: '12px', borderRadius: '8px',
+          background: '#f9fafb', padding: '12px 14px', borderRadius: '8px',
           fontSize: '12px', fontFamily: 'Consolas, monospace', overflowX: 'auto',
-          margin: '8px 0', border: '1px solid rgba(255,255,255,0.07)',
-        }}><code>{children}</code></pre>
+          margin: '8px 0', border: '1px solid #e5e7eb',
+        }}><code style={{ color: '#111827' }}>{children}</code></pre>
       ),
-    strong: ({ children }) => (
-      <strong style={{ color: isUser ? '#e2d9f3' : '#c4b5fd', fontWeight: '700' }}>{children}</strong>
-    ),
+    strong: ({ children }) => <strong style={{ color: '#111827', fontWeight: '700', fontFamily: FONT }}>{children}</strong>,
     a: ({ href, children }) => (
       <a href={href} target="_blank" rel="noopener noreferrer" style={{
-        color: '#60a5fa', textDecoration: 'underline', textDecorationColor: 'rgba(96,165,250,0.4)',
-        wordBreak: 'break-all',
+        color: '#7c3aed', fontWeight: '600', textDecoration: 'underline',
+        textDecorationColor: 'rgba(124,58,237,0.35)', fontFamily: FONT,
+        transition: 'text-decoration-color 0.15s',
       }}>{children}</a>
     ),
-    ul: ({ children }) => <ul style={{ paddingLeft: '20px', margin: '6px 0 10px' }}>{children}</ul>,
-    ol: ({ children }) => <ol style={{ paddingLeft: '20px', margin: '6px 0 10px' }}>{children}</ol>,
-    li: ({ children }) => <li style={{ marginBottom: '5px', lineHeight: '1.7' }}>{children}</li>,
-    h1: ({ children }) => <h1 style={{ fontSize: '16px', fontWeight: '700', color: '#e2e8f0', margin: '12px 0 8px', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: '6px' }}>{children}</h1>,
-    h2: ({ children }) => <h2 style={{ fontSize: '14px', fontWeight: '700', color: '#c4b5fd', margin: '12px 0 6px' }}>{children}</h2>,
-    h3: ({ children }) => <h3 style={{ fontSize: '13px', fontWeight: '700', color: '#94a3b8', margin: '10px 0 5px' }}>{children}</h3>,
-    hr: () => <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.08)', margin: '12px 0' }} />,
+    ul: ({ children }) => <ul style={{ paddingLeft: '18px', margin: '6px 0 10px', fontFamily: FONT }}>{children}</ul>,
+    ol: ({ children }) => <ol style={{ paddingLeft: '18px', margin: '6px 0 10px', fontFamily: FONT }}>{children}</ol>,
+    li: ({ children }) => <li style={{ marginBottom: '4px', lineHeight: '1.75', color: '#374151', fontFamily: FONT }}>{children}</li>,
+    h1: ({ children }) => <h1 style={{ fontSize: '15px', fontWeight: '800', color: '#111827', margin: '12px 0 7px', borderBottom: '1px solid #e5e7eb', paddingBottom: '5px', fontFamily: FONT }}>{children}</h1>,
+    h2: ({ children }) => <h2 style={{ fontSize: '13px', fontWeight: '700', color: '#111827', margin: '10px 0 5px', fontFamily: FONT }}>{children}</h2>,
+    h3: ({ children }) => <h3 style={{ fontSize: '12px', fontWeight: '700', color: '#374151', margin: '8px 0 4px', fontFamily: FONT }}>{children}</h3>,
+    hr: () => <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '12px 0' }} />,
     blockquote: ({ children }) => (
       <blockquote style={{
         borderLeft: '3px solid #7c3aed', paddingLeft: '12px', margin: '8px 0',
-        color: '#94a3b8', fontStyle: 'italic',
+        color: '#6b7280', fontStyle: 'italic',
       }}>{children}</blockquote>
     ),
     table: ({ children }) => (
-      <div style={{ overflowX: 'auto', margin: '10px 0' }}>
-        <table style={{
-          width: '100%', borderCollapse: 'collapse', fontSize: '12px',
-          border: '1px solid rgba(255,255,255,0.1)',
-        }}>{children}</table>
+      <div style={{ overflowX: 'auto', margin: '10px 0', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>{children}</table>
       </div>
     ),
-    thead: ({ children }) => <thead style={{ background: 'rgba(124,58,237,0.15)' }}>{children}</thead>,
+    thead: ({ children }) => <thead style={{ background: '#ede9fe' }}>{children}</thead>,
     tbody: ({ children }) => <tbody>{children}</tbody>,
-    tr: ({ children }) => <tr style={{ borderBottom: '1px solid rgba(255,255,255,0.06)' }}>{children}</tr>,
+    tr: ({ children }) => <tr style={{ borderBottom: '1px solid #f3f4f6' }}>{children}</tr>,
     th: ({ children }) => (
       <th style={{
-        padding: '8px 12px', textAlign: 'left', color: '#c4b5fd',
-        fontWeight: '700', fontSize: '11px', textTransform: 'uppercase',
-        letterSpacing: '0.05em', whiteSpace: 'nowrap',
+        padding: '8px 12px', textAlign: 'left', color: '#7c3aed',
+        fontWeight: '700', fontSize: '10px', textTransform: 'uppercase',
+        letterSpacing: '0.06em', whiteSpace: 'nowrap', fontFamily: FONT,
       }}>{children}</th>
     ),
     td: ({ children }) => (
-      <td style={{
-        padding: '7px 12px', color: '#e2e8f0', verticalAlign: 'top',
-        fontSize: '12px', lineHeight: '1.6',
-      }}>{children}</td>
+      <td style={{ padding: '7px 12px', color: '#374151', verticalAlign: 'top', fontSize: '12px', lineHeight: '1.6', fontFamily: FONT }}>{children}</td>
     ),
   }
 }
 
-/* Collapsible tool-call summary shown above a message */
 function ToolSummary({ tools }) {
   const [open, setOpen] = useState(false)
   if (!tools?.length) return null
@@ -102,31 +91,31 @@ function ToolSummary({ tools }) {
     : `🕸 Graph traversal · ${tools.length} tool calls`
 
   return (
-    <div style={{ marginBottom: '6px' }}>
+    <div style={{ marginBottom: '6px', animation: 'fadeIn 0.25s ease both' }}>
       <button
         onClick={() => setOpen(v => !v)}
         style={{
           display: 'inline-flex', alignItems: 'center', gap: '6px',
-          background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.18)',
-          color: '#a78bfa', borderRadius: '20px', padding: '3px 12px',
+          background: '#ede9fe', border: '1px solid #ddd6fe',
+          color: '#7c3aed', borderRadius: '20px', padding: '3px 12px',
           fontSize: '11px', cursor: 'pointer', fontFamily: FONT,
-          transition: 'background 0.15s',
+          transition: 'all 0.15s ease',
         }}
-        onMouseEnter={e => e.currentTarget.style.background = 'rgba(124,58,237,0.15)'}
-        onMouseLeave={e => e.currentTarget.style.background = 'rgba(124,58,237,0.08)'}
+        onMouseEnter={e => { e.currentTarget.style.background = '#ddd6fe'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+        onMouseLeave={e => { e.currentTarget.style.background = '#ede9fe'; e.currentTarget.style.transform = 'translateY(0)' }}
       >
         {label}
-        <span style={{ fontSize: '9px', opacity: 0.7 }}>{open ? '▲' : '▼'}</span>
+        <span style={{ fontSize: '9px', opacity: 0.6 }}>{open ? '▲' : '▼'}</span>
       </button>
-
       {open && (
         <div style={{
           marginTop: '6px', padding: '8px 12px',
-          background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(255,255,255,0.06)',
+          background: '#f9fafb', border: '1px solid #e5e7eb',
           borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '4px',
+          animation: 'fadeInUp 0.2s ease both',
         }}>
           {tools.map((t, i) => (
-            <span key={i} style={{ color: '#64748b', fontSize: '11px' }}>
+            <span key={i} style={{ color: '#6b7280', fontSize: '11px', fontFamily: FONT }}>
               {TOOL_LABELS[t] || `🔧 ${t}`}
             </span>
           ))}
@@ -143,7 +132,6 @@ const WELCOME = {
 
 export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone }) {
   const storageKey = `contrigraph-chat-${username}`
-
   const [messages, setMessages] = useState(() => {
     try {
       const saved = localStorage.getItem(storageKey)
@@ -156,7 +144,6 @@ export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone
   const [activeTools, setActiveTools] = useState([])
   const bottomRef = useRef(null)
 
-  // Persist messages to localStorage whenever they change
   useEffect(() => {
     try { localStorage.setItem(storageKey, JSON.stringify(messages)) } catch {}
   }, [messages])
@@ -170,7 +157,6 @@ export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone
     if (!msg || loading) return
     setInput('')
     setActiveTools([])
-
     setMessages(prev => [...prev,
       { role: 'user', content: msg },
       { role: 'assistant', content: '', toolCalls: [] },
@@ -214,36 +200,31 @@ export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#0d1117', fontFamily: FONT }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#f9fafb', fontFamily: FONT }}>
+
       {/* Messages */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
         {messages.map((m, i) => (
-          <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
-
-            {/* Tool summary — collapsed by default */}
+          <div key={i} style={{
+            display: 'flex', flexDirection: 'column',
+            alignItems: m.role === 'user' ? 'flex-end' : 'flex-start',
+            animation: 'messageIn 0.3s ease both',
+          }}>
             {m.toolCalls?.length > 0 && <ToolSummary tools={m.toolCalls} />}
-
-            {/* Bubble — skip when assistant content is still empty (typing indicator shown instead) */}
             {(m.content || m.role === 'user') && (
               <div style={{
-                maxWidth: m.role === 'user' ? '70%' : '90%',
-                padding: '14px 18px',
-                borderRadius: m.role === 'user' ? '18px 18px 5px 18px' : '5px 18px 18px 18px',
-                background: m.role === 'user'
-                  ? 'linear-gradient(135deg, #7c3aed, #2563eb)'
-                  : 'rgba(22,30,45,0.9)',
-                border: m.role === 'user' ? 'none' : '1px solid rgba(255,255,255,0.07)',
-                color: '#e2e8f0',
-                fontSize: '13px',
-                lineHeight: '1.7',
-                boxShadow: m.role === 'user'
-                  ? '0 4px 20px rgba(124,58,237,0.25)'
-                  : '0 2px 12px rgba(0,0,0,0.2)',
-                letterSpacing: '0.01em',
+                maxWidth: m.role === 'user' ? '72%' : '92%',
+                padding: '12px 16px',
+                borderRadius: m.role === 'user' ? '16px 16px 4px 16px' : '4px 16px 16px 16px',
+                background: m.role === 'user' ? '#7c3aed' : '#ffffff',
+                border: m.role === 'user' ? 'none' : '1px solid #e5e7eb',
+                color: m.role === 'user' ? '#ffffff' : '#111827',
+                fontSize: '13px', lineHeight: '1.7', fontFamily: FONT,
+                boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
               }}>
                 {m.role === 'assistant'
-                  ? <ReactMarkdown remarkPlugins={[remarkGfm]} components={makeComponents(false)}>{m.content}</ReactMarkdown>
-                  : <span>{m.content}</span>
+                  ? <ReactMarkdown remarkPlugins={[remarkGfm]} components={makeComponents()}>{m.content}</ReactMarkdown>
+                  : <span style={{ fontFamily: FONT }}>{m.content}</span>
                 }
               </div>
             )}
@@ -252,11 +233,12 @@ export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone
 
         {/* Typing indicator */}
         {loading && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', animation: 'fadeInUp 0.2s ease both' }}>
             <div style={{
-              display: 'flex', gap: '5px', padding: '12px 18px',
-              background: 'rgba(22,30,45,0.9)', border: '1px solid rgba(255,255,255,0.07)',
-              borderRadius: '5px 18px 18px 18px',
+              display: 'flex', gap: '4px', padding: '11px 16px',
+              background: '#ffffff', border: '1px solid #e5e7eb',
+              borderRadius: '4px 16px 16px 16px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
             }}>
               {[0, 1, 2].map(j => (
                 <span key={j} style={{
@@ -268,7 +250,11 @@ export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone
               ))}
             </div>
             {activeTools.length > 0 && (
-              <span style={{ color: '#475569', fontSize: '12px', fontStyle: 'italic' }}>
+              <span style={{
+                color: '#7c3aed', fontSize: '11px', fontFamily: FONT,
+                background: '#ede9fe', padding: '3px 10px',
+                borderRadius: '20px', border: '1px solid #ddd6fe',
+              }}>
                 {TOOL_LABELS[activeTools[activeTools.length - 1]] || 'Thinking…'}
               </span>
             )}
@@ -280,17 +266,18 @@ export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone
 
       {/* Suggested queries */}
       {messages.length <= 2 && (
-        <div style={{ padding: '0 24px 12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div style={{ padding: '0 22px 12px', display: 'flex', gap: '7px', flexWrap: 'wrap' }}>
           {SUGGESTED.map((s, i) => (
             <button key={i} onClick={() => send(s.text)} style={{
-              display: 'flex', alignItems: 'center', gap: '7px',
-              background: 'rgba(22,30,45,0.7)', border: '1px solid rgba(255,255,255,0.07)',
-              borderRadius: '20px', color: '#94a3b8', padding: '7px 15px',
-              fontSize: '12px', cursor: 'pointer', transition: 'all 0.15s',
-              fontFamily: FONT,
+              display: 'flex', alignItems: 'center', gap: '6px',
+              background: '#ffffff', border: '1px solid #e5e7eb',
+              borderRadius: '20px', color: '#6b7280', padding: '6px 13px',
+              fontSize: '11px', cursor: 'pointer', fontFamily: FONT,
+              transition: 'all 0.18s ease',
+              opacity: 0, animation: `fadeInUp 0.3s ease ${0.05 + i * 0.06}s both`,
             }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(124,58,237,0.4)'; e.currentTarget.style.color = '#c4b5fd' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = '#94a3b8' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#7c3aed'; e.currentTarget.style.color = '#7c3aed'; e.currentTarget.style.transform = 'translateY(-1px)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.transform = 'translateY(0)' }}
             >
               {s.icon} {s.text}
             </button>
@@ -300,11 +287,10 @@ export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone
 
       {/* Input */}
       <div style={{
-        padding: '14px 24px 16px',
-        borderTop: '1px solid rgba(255,255,255,0.06)',
-        background: 'rgba(10,15,26,0.9)',
+        padding: '14px 22px 16px',
+        borderTop: '1px solid #e5e7eb', background: '#ffffff',
       }}>
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-end' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
           <textarea
             rows={1}
             value={input}
@@ -313,41 +299,36 @@ export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone
             disabled={loading}
             placeholder="Ask about issues, skills, maintainers…"
             style={{
-              flex: 1, padding: '12px 16px',
-              background: 'rgba(22,30,45,0.8)', border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: '12px', color: '#e2e8f0', fontSize: '13px',
+              flex: 1, padding: '11px 14px',
+              background: '#f9fafb', border: '1px solid #e5e7eb',
+              borderRadius: '10px', color: '#111827', fontSize: '13px',
               outline: 'none', resize: 'none', lineHeight: '1.6',
-              fontFamily: FONT, transition: 'border-color 0.2s',
+              fontFamily: FONT, transition: 'border-color 0.18s, box-shadow 0.18s',
             }}
-            onFocus={e => e.target.style.borderColor = 'rgba(124,58,237,0.5)'}
-            onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
+            onFocus={e => { e.target.style.borderColor = '#7c3aed'; e.target.style.boxShadow = '0 0 0 3px rgba(124,58,237,0.1)'; e.target.style.background = '#ffffff' }}
+            onBlur={e => { e.target.style.borderColor = '#e5e7eb'; e.target.style.boxShadow = 'none'; e.target.style.background = '#f9fafb' }}
           />
           <button
             onClick={() => send()}
             disabled={loading || !input.trim()}
             style={{
-              padding: '12px 22px', borderRadius: '12px', border: 'none',
-              background: loading || !input.trim() ? 'rgba(124,58,237,0.25)' : 'linear-gradient(135deg, #7c3aed, #2563eb)',
-              color: '#fff', fontWeight: '700', fontSize: '13px',
+              padding: '11px 20px', borderRadius: '10px', border: 'none',
+              background: loading || !input.trim() ? '#e5e7eb' : '#7c3aed',
+              color: loading || !input.trim() ? '#9ca3af' : '#ffffff',
+              fontWeight: '700', fontSize: '13px', fontFamily: FONT,
               cursor: loading || !input.trim() ? 'not-allowed' : 'pointer',
-              transition: 'opacity 0.2s', fontFamily: FONT, flexShrink: 0,
-              letterSpacing: '0.03em',
+              transition: 'all 0.18s ease', flexShrink: 0,
             }}
+            onMouseEnter={e => { if (!loading && input.trim()) { e.currentTarget.style.background = '#6d28d9'; e.currentTarget.style.transform = 'translateY(-1px)' } }}
+            onMouseLeave={e => { e.currentTarget.style.background = loading || !input.trim() ? '#e5e7eb' : '#7c3aed'; e.currentTarget.style.transform = 'translateY(0)' }}
           >
             {loading ? '…' : 'Send'}
           </button>
         </div>
-        <p style={{ color: '#2d3748', fontSize: '11px', marginTop: '7px', marginBottom: 0 }}>
+        <p style={{ color: '#d1d5db', fontSize: '10px', marginTop: '6px', marginBottom: 0, fontFamily: FONT }}>
           Enter to send · Shift+Enter for new line
         </p>
       </div>
-
-      <style>{`
-        @keyframes bounce {
-          0%, 80%, 100% { transform: translateY(0); opacity: 0.4; }
-          40% { transform: translateY(-5px); opacity: 1; }
-        }
-      `}</style>
     </div>
   )
 }
