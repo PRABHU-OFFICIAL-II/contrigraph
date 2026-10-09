@@ -315,15 +315,24 @@ def query_session_history(username: str, days_back: int = 7) -> list:
     g = get_graph()
     result = g.query(
         """
-        MATCH (d:Developer {username: $username})-[v:VIEWED]->(i:Issue)<-[:HAS_ISSUE]-(r:Repository)
-        RETURN i.title AS title, i.url AS url, r.full_name AS repo,
-               v.timestamp AS viewed_at, v.session_id AS session_id
+        MATCH (d:Developer {username: $username})-[v]->(i:Issue)
+        WHERE type(v) IN ['VIEWED', 'BOOKMARKED', 'SKIPPED', 'APPLIED_TO']
+        OPTIONAL MATCH (i)<-[:HAS_ISSUE]-(r:Repository)
+        RETURN i.title AS title, i.url AS url,
+               COALESCE(r.full_name, i.id) AS repo,
+               type(v) AS action,
+               v.timestamp AS viewed_at
         ORDER BY v.timestamp DESC
-        LIMIT 20
+        LIMIT 30
         """,
-        {"username": username, "days_back": days_back},
+        {"username": username},
     )
-    return [dict(zip(result.header, row)) for row in result.result_set]
+    rows = []
+    for row in result.result_set:
+        d = dict(zip(result.header, row))
+        d["action"] = (d.get("action") or "viewed").lower().replace("applied_to", "applied")
+        rows.append(d)
+    return rows
 
 
 def query_repo_health(repo_full_name: str) -> dict:
@@ -359,7 +368,7 @@ def write_session_action(username: str, issue_id: str, action: str, session_id: 
     g.query(
         f"""
         MATCH (d:Developer {{username: $username}})
-        MATCH (i:Issue {{id: $issue_id}})
+        MERGE (i:Issue {{id: $issue_id}})
         CREATE (d)-[:{rel_type} {{{props}}}]->(i)
         """,
         params,
