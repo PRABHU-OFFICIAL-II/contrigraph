@@ -42,7 +42,7 @@ export default function Home() {
       minHeight: '100vh',
       background: 'radial-gradient(ellipse at 60% 0%, #1a1040 0%, #0d1117 55%)',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: '24px', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      padding: '24px', fontFamily: 'Verdana, Geneva, Tahoma, sans-serif',
     }}>
       {/* Subtle grid background */}
       <div style={{

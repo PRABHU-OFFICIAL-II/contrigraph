@@ -21,7 +21,7 @@ export default function Search() {
   return (
     <div style={{
       display: 'flex', height: '100vh', overflow: 'hidden',
-      background: '#0d1117', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      background: '#0d1117', fontFamily: 'Verdana, Geneva, Tahoma, sans-serif',
     }}>
       {/* ── Sidebar ── */}
       <aside style={{
