@@ -4,6 +4,17 @@ from falkordb import FalkorDB
 _client = None
 _graph = None
 
+
+def _row_to_dict(header, row):
+    """Convert a FalkorDB result row to a dict, handling both str and (type,name) header formats."""
+    keys = []
+    for h in header:
+        if isinstance(h, (list, tuple)):
+            keys.append(h[1] if len(h) > 1 else str(h[0]))
+        else:
+            keys.append(str(h))
+    return dict(zip(keys, row))
+
 def get_graph():
     global _client, _graph
     if _graph is None:
@@ -251,17 +262,17 @@ def query_matching_issues(username: str, max_response_days: int = 30, complexity
         """,
         {"username": username, "max_response_days": max_response_days, "complexity": complexity or "", "limit": limit},
     )
-    return [dict(zip(result.header, row)) for row in result.result_set]
+    return [_row_to_dict(result.header, row) for row in result.result_set]
 
 
 def get_repos_without_issues(username: str, limit: int = 10) -> list[str]:
-    """Return full_names of skill-matched repos (not owned by user) that have no issues yet."""
+    """Return skill-matched external repos (not owned/contributed-to by user) with no issues yet."""
     g = get_graph()
     result = g.query(
         """
         MATCH (d:Developer {username: $username})-[:HAS_SKILL]->(s:Skill)<-[:REQUIRES_SKILL]-(r:Repository)
         WHERE NOT (r)-[:HAS_ISSUE]->(:Issue)
-          AND NOT r.full_name STARTS WITH $username
+          AND NOT (d)-[:CONTRIBUTED_TO]->(r)
         RETURN DISTINCT r.full_name AS full_name
         LIMIT $limit
         """,
@@ -282,7 +293,7 @@ def query_skill_gaps(username: str, repo_full_name: str) -> list:
         """,
         {"username": username, "repo": repo_full_name},
     )
-    return [dict(zip(result.header, row)) for row in result.result_set]
+    return [_row_to_dict(result.header, row) for row in result.result_set]
 
 
 def query_connection_path(username: str, repo_full_name: str) -> dict:
@@ -319,7 +330,7 @@ def query_related_repos(username: str, limit: int = 10) -> list:
         """,
         {"username": username, "limit": limit},
     )
-    return [dict(zip(result.header, row)) for row in result.result_set]
+    return [_row_to_dict(result.header, row) for row in result.result_set]
 
 
 def query_session_history(username: str, days_back: int = 7) -> list:
@@ -330,18 +341,22 @@ def query_session_history(username: str, days_back: int = 7) -> list:
         OPTIONAL MATCH (i)<-[:HAS_ISSUE]-(r:Repository)
         RETURN i.title AS title, i.url AS url,
                r.full_name AS repo,
-               type(v) AS action,
-               v.timestamp AS viewed_at
-        ORDER BY v.timestamp DESC
+               type(v) AS action
+        ORDER BY v.ts DESC
         LIMIT 30
         """,
         {"username": username},
     )
     rows = []
     for row in result.result_set:
-        d = dict(zip(result.header, row))
-        d["action"] = (d.get("action") or "viewed").lower().replace("applied_to", "applied")
-        rows.append(d)
+        # positional: title=0, url=1, repo=2, action=3
+        action = (row[3] or "viewed").lower().replace("applied_to", "applied")
+        rows.append({
+            "title": row[0],
+            "url": row[1],
+            "repo": row[2],
+            "action": action,
+        })
     return rows
 
 
@@ -363,14 +378,14 @@ def query_repo_health(repo_full_name: str) -> dict:
         {"repo": repo_full_name},
     )
     if result.result_set:
-        return dict(zip(result.header, result.result_set[0]))
+        return _row_to_dict(result.header, result.result_set[0])
     return {}
 
 
 def write_session_action(username: str, issue_id: str, action: str, session_id: str, reason: str = None):
     g = get_graph()
     rel_type = action.upper()
-    props = "timestamp: datetime(), session_id: $session_id"
+    props = "ts: timestamp(), session_id: $session_id"
     params = {"username": username, "issue_id": issue_id, "session_id": session_id}
     if reason:
         props += ", reason: $reason"

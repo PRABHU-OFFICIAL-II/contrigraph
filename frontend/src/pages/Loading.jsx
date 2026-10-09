@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 
+const FONT = 'Verdana, Geneva, Tahoma, sans-serif'
+
 const STEPS = [
   { icon: '🔗', text: 'Connected to GitHub' },
   { icon: '📡', text: 'Fetching your repositories…' },
@@ -18,67 +20,64 @@ export default function Loading() {
 
   useEffect(() => {
     if (!username) { navigate('/'); return }
-
-    // Advance steps every 900ms
     const stepTimer = setInterval(() => {
       setStep(prev => {
         if (prev >= STEPS.length - 1) { clearInterval(stepTimer); return prev }
         return prev + 1
       })
     }, 900)
-
-    // Redirect after all steps complete
     const redirectTimer = setTimeout(() => {
       setDone(true)
       setTimeout(() => navigate(`/search/${username}`), 400)
     }, STEPS.length * 900 + 200)
-
     return () => { clearInterval(stepTimer); clearTimeout(redirectTimer) }
   }, [username])
 
+  const progress = ((step + 1) / STEPS.length) * 100
+
   return (
     <div style={{
-      minHeight: '100vh',
-      background: 'radial-gradient(ellipse at 50% 0%, #1a1040 0%, #0d1117 60%)',
+      minHeight: '100vh', background: '#f9fafb',
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontFamily: 'Verdana, Geneva, Tahoma, sans-serif',
-      padding: '24px',
+      fontFamily: FONT, padding: '24px',
     }}>
-      {/* Grid bg */}
       <div style={{
-        position: 'fixed', inset: 0, zIndex: 0, pointerEvents: 'none',
-        backgroundImage: 'linear-gradient(rgba(255,255,255,0.02) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.02) 1px, transparent 1px)',
-        backgroundSize: '40px 40px',
-      }} />
-
-      <div style={{ position: 'relative', zIndex: 1, textAlign: 'center', maxWidth: '400px', width: '100%' }}>
+        textAlign: 'center', maxWidth: '380px', width: '100%',
+        animation: 'fadeInUp 0.4s ease both',
+      }}>
         {/* Logo */}
         <div style={{
           display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-          width: '72px', height: '72px', borderRadius: '20px',
-          background: 'linear-gradient(135deg, #7c3aed, #2563eb)',
-          marginBottom: '28px', fontSize: '32px',
-          boxShadow: '0 0 60px rgba(124,58,237,0.4)',
-          animation: done ? 'none' : 'pulse 2s ease-in-out infinite',
+          width: '60px', height: '60px', borderRadius: '16px',
+          background: '#7c3aed', fontSize: '26px', marginBottom: '20px',
         }}>🔗</div>
 
         <h2 style={{
-          fontSize: '22px', fontWeight: '800', letterSpacing: '-0.02em',
-          background: 'linear-gradient(135deg, #e2d9f3, #93c5fd)',
-          WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
-          marginBottom: '8px',
+          fontSize: '20px', fontWeight: '800', color: '#111827',
+          letterSpacing: '-0.02em', marginBottom: '6px', fontFamily: FONT,
         }}>Building your graph</h2>
 
-        <p style={{ color: '#475569', fontSize: '13px', marginBottom: '40px' }}>
+        <p style={{ color: '#6b7280', fontSize: '12px', marginBottom: '28px', fontFamily: FONT }}>
           @{username} · FalkorDB is ingesting your GitHub profile
         </p>
 
-        {/* Steps */}
+        {/* Progress bar */}
         <div style={{
-          background: 'rgba(22,27,34,0.8)', backdropFilter: 'blur(12px)',
-          border: '1px solid rgba(255,255,255,0.07)', borderRadius: '14px',
-          padding: '20px 24px', textAlign: 'left',
-          boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
+          height: '4px', background: '#e5e7eb',
+          borderRadius: '99px', marginBottom: '20px', overflow: 'hidden',
+        }}>
+          <div style={{
+            height: '100%', background: '#7c3aed', borderRadius: '99px',
+            width: `${progress}%`,
+            transition: 'width 0.8s cubic-bezier(0.16,1,0.3,1)',
+          }} />
+        </div>
+
+        {/* Steps card */}
+        <div style={{
+          background: '#ffffff', border: '1px solid #e5e7eb',
+          borderRadius: '12px', padding: '18px 22px', textAlign: 'left',
+          boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
         }}>
           {STEPS.map((s, i) => {
             const isActive = i === step && !done
@@ -86,51 +85,44 @@ export default function Loading() {
             return (
               <div key={i} style={{
                 display: 'flex', alignItems: 'center', gap: '12px',
-                padding: '9px 0',
-                borderBottom: i < STEPS.length - 1 ? '1px solid rgba(255,255,255,0.05)' : 'none',
+                padding: '8px 0',
+                borderBottom: i < STEPS.length - 1 ? '1px solid #f3f4f6' : 'none',
                 opacity: i > step && !done ? 0.3 : 1,
-                transition: 'opacity 0.3s',
+                transition: 'opacity 0.35s ease',
+                animation: isDone || isActive ? 'stepIn 0.3s ease both' : 'none',
               }}>
-                <span style={{ fontSize: '16px', width: '20px', textAlign: 'center', flexShrink: 0 }}>
-                  {isDone ? '✅' : isActive ? <Spinner /> : s.icon}
+                <span style={{
+                  fontSize: '14px', width: '20px', textAlign: 'center', flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                }}>
+                  {isDone ? '✅' : isActive ? <StepSpinner /> : s.icon}
                 </span>
                 <span style={{
-                  fontSize: '12px',
-                  color: isActive ? '#c4b5fd' : isDone ? '#94a3b8' : '#475569',
-                  fontWeight: isActive ? '600' : '400',
+                  fontSize: '12px', fontFamily: FONT,
+                  color: isActive ? '#7c3aed' : isDone ? '#9ca3af' : '#6b7280',
+                  fontWeight: isActive ? '700' : '400',
                   transition: 'color 0.3s',
-                }}>
-                  {s.text}
-                </span>
+                }}>{s.text}</span>
               </div>
             )
           })}
         </div>
 
-        <p style={{ color: '#374151', fontSize: '11px', marginTop: '20px' }}>
+        <p style={{ color: '#9ca3af', fontSize: '11px', marginTop: '14px', fontFamily: FONT }}>
           This usually takes 5–10 seconds
         </p>
       </div>
-
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-        @keyframes pulse {
-          0%, 100% { box-shadow: 0 0 40px rgba(124,58,237,0.4); }
-          50%       { box-shadow: 0 0 80px rgba(124,58,237,0.7); }
-        }
-      `}</style>
     </div>
   )
 }
 
-function Spinner() {
+function StepSpinner() {
   return (
     <span style={{
-      display: 'inline-block', width: '14px', height: '14px',
-      border: '2px solid rgba(124,58,237,0.3)',
+      display: 'inline-block', width: '13px', height: '13px',
+      border: '2px solid rgba(124,58,237,0.2)',
       borderTopColor: '#7c3aed', borderRadius: '50%',
       animation: 'spin 0.7s linear infinite',
-      verticalAlign: 'middle',
     }} />
   )
 }
