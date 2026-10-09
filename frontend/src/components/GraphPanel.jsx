@@ -69,7 +69,18 @@ export default function GraphPanel({ username, highlightIds = [] }) {
   const [dims, setDims] = useState({ w: 600, h: 500 })
   const containerRef = useRef(null)
   const fgRef = useRef(null)
+  const snapTimer = useRef(null)
   const highlightSet = new Set(highlightIds)
+
+  // Snap back to fitted view 1.8s after the user stops interacting
+  function scheduleSnap() {
+    clearTimeout(snapTimer.current)
+    snapTimer.current = setTimeout(() => {
+      fgRef.current?.zoomToFit(700, 50)
+    }, 1800)
+  }
+
+  useEffect(() => () => clearTimeout(snapTimer.current), [])
 
   useEffect(() => {
     if (!username) return
@@ -192,8 +203,14 @@ export default function GraphPanel({ username, highlightIds = [] }) {
         )}
       </div>
 
-      {/* Canvas */}
-      <div ref={containerRef} style={{ flex: 1, overflow: 'hidden', position: 'relative' }}>
+      {/* Canvas — snap back after user stops panning/zooming */}
+      <div
+        ref={containerRef}
+        style={{ flex: 1, overflow: 'hidden', position: 'relative' }}
+        onMouseUp={scheduleSnap}
+        onWheel={scheduleSnap}
+        onTouchEnd={scheduleSnap}
+      >
         {graphData.nodes.length === 0 ? (
           <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#374151', fontSize: '12px' }}>
             Loading graph…
