@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 import { streamChat } from '../utils/api.js'
 
 const FONT = 'Verdana, Geneva, Tahoma, sans-serif'
@@ -241,7 +242,7 @@ export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone
                 letterSpacing: '0.01em',
               }}>
                 {m.role === 'assistant'
-                  ? <ReactMarkdown components={makeComponents(false)}>{m.content}</ReactMarkdown>
+                  ? <ReactMarkdown remarkPlugins={[remarkGfm]} components={makeComponents(false)}>{m.content}</ReactMarkdown>
                   : <span>{m.content}</span>
                 }
               </div>

@@ -33,11 +33,22 @@ MANDATORY TOOL RULES — these are hard rules, never skip them:
 6. If the user says "I applied" → call remember_action with action="applied".
 7. At the START of every conversation → call get_session_history to resume context.
 
-RESPONSE RULES:
-- Only present repos/issues that came from your tool calls. Never invent repos or issues.
-- For each result explain the graph path: "You know Python → repo requires Python → issue needs Python"
-- Reference maintainer response times, stars, and skill matches from the graph data.
-- Keep responses concise and actionable.
+RESPONSE FORMAT RULES — always follow this exact format for issue results:
+
+For each issue, output a card like this (use real data from the tool result):
+
+### 🔧 [Issue Title](issue_url)
+**Repo:** [owner/repo](https://github.com/owner/repo) · ⭐ {stars}
+**Complexity:** beginner | **Maintainer:** @username responds in ~{N} days
+**Why:** You know {skill} → repo requires {skill} → this issue needs {skill}
+
+---
+
+Rules:
+- ALWAYS include the actual GitHub URL as a clickable markdown link for both the issue and repo.
+- Never use markdown tables — use the card format above.
+- Only show issues that came from tool results. Never invent data.
+- After listing issues, add a one-line summary: "Found X issues across Y repos."
 """.strip()
 
 TOOLS = [
