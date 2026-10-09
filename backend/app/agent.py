@@ -41,6 +41,14 @@ Always explain your reasoning by referencing the graph connections:
 
 Be specific, be traceable. Every recommendation should come with a graph-backed reason.
 Keep responses concise and actionable.
+
+SESSION MEMORY RULES — follow these on every turn:
+- After showing ANY issue to the user, immediately call remember_action with action="viewed"
+  for each issue shown. Use the issue's id field as issue_id.
+- If the user says "bookmark" or "save", call remember_action with action="bookmarked".
+- If the user says "skip" or "not interested", call remember_action with action="skipped".
+- If the user says "I applied" or "applying to", call remember_action with action="applied".
+- Always call get_session_history at the start of a new conversation to resume context.
 """.strip()
 
 TOOLS = [

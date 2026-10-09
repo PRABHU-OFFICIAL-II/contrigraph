@@ -6,6 +6,7 @@ const ACTION_STYLES = {
   bookmarked: { icon: '🔖', color: '#f59e0b' },
   skipped:    { icon: '⏭', color: '#475569' },
   applied:    { icon: '✅', color: '#22c55e' },
+  applied_to: { icon: '✅', color: '#22c55e' },
 }
 
 export default function SessionHistory({ username }) {
