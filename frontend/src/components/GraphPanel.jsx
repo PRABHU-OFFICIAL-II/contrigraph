@@ -53,6 +53,7 @@ export default function GraphPanel({ username, highlightIds = [] }) {
   const canvasRef    = useRef(null)
   const stateRef     = useRef({ zoom: 1, panX: 0, panY: 0, dragging: false, lastX: 0, lastY: 0 })
   const [tooltip, setTooltip] = useState(null)
+  const [drawTick, setDrawTick] = useState(0)
   const highlightSet = new Set(highlightIds)
 
   // Build a node lookup map by id
@@ -71,6 +72,7 @@ export default function GraphPanel({ username, highlightIds = [] }) {
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas || !graphData.nodes.length) return
+    if (!canvas.width || !canvas.height) return
     const ctx = canvas.getContext('2d')
     const { zoom, panX, panY } = stateRef.current
 
@@ -171,7 +173,7 @@ export default function GraphPanel({ username, highlightIds = [] }) {
     }
 
     ctx.restore()
-  }, [graphData, highlightIds, tooltip])
+  }, [graphData, highlightIds, tooltip, drawTick])
 
   // ── Resize + initial fit ──────────────────────────────────────────────────
   useEffect(() => {
@@ -181,19 +183,20 @@ export default function GraphPanel({ username, highlightIds = [] }) {
 
     function fit() {
       if (!graphData.nodes.length) return
+      if (!canvas.width || !canvas.height) return
       const xs = graphData.nodes.map(n => n.x)
       const ys = graphData.nodes.map(n => n.y)
-      const minX = Math.min(...xs) - 30
-      const maxX = Math.max(...xs) + 30
-      const minY = Math.min(...ys) - 30
-      const maxY = Math.max(...ys) + 30
+      const minX = Math.min(...xs) - 40
+      const maxX = Math.max(...xs) + 40
+      const minY = Math.min(...ys) - 40
+      const maxY = Math.max(...ys) + 40
       const scaleX = canvas.width  / (maxX - minX)
       const scaleY = canvas.height / (maxY - minY)
-      const zoom   = Math.min(scaleX, scaleY) * 0.9
+      const zoom   = Math.min(scaleX, scaleY) * 0.88
       const panX   = -((minX + maxX) / 2) * zoom
       const panY   = -((minY + maxY) / 2) * zoom
       stateRef.current = { ...stateRef.current, zoom, panX, panY }
-      redraw()
+      setDrawTick(c => c + 1)
     }
 
     function resize() {
@@ -205,12 +208,13 @@ export default function GraphPanel({ username, highlightIds = [] }) {
     const obs = new ResizeObserver(resize)
     obs.observe(container)
     resize()
-    return () => obs.disconnect()
+    // Fallback: redraw 400ms after data loads in case canvas wasn't sized yet
+    const t = setTimeout(() => { resize() }, 400)
+    return () => { obs.disconnect(); clearTimeout(t) }
   }, [graphData])
 
   function redraw() {
-    // Trigger re-render by forcing state update via a dummy
-    setTooltip(t => t)
+    setDrawTick(c => c + 1)
   }
 
   // ── Interaction ───────────────────────────────────────────────────────────
