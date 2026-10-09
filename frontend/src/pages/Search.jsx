@@ -147,7 +147,7 @@ export default function Search() {
             <ChatPanel username={username} sessionId={SESSION_ID} onToolCall={() => {}} onAgentDone={() => setHistoryTick(t => t + 1)} />
           </div>
           <div style={{ flex: 1, borderLeft: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden', display: showGraph ? 'block' : 'none' }}>
-            <GraphPanel username={username} highlightIds={highlightIds} />
+            <GraphPanel username={username} highlightIds={highlightIds} visible={showGraph} />
           </div>
         </div>
       </main>
