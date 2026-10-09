@@ -135,15 +135,30 @@ function ToolSummary({ tools }) {
   )
 }
 
-export default function ChatPanel({ username, sessionId, onToolCall }) {
-  const [messages, setMessages] = useState([{
-    role: 'assistant',
-    content: `Hi! I'm **ContriGraph**. I've loaded your GitHub graph — you know **Python, JavaScript, TypeScript, Java, Go, Dart, and HTML**.\n\nWhat kind of open source issue are you looking for today?`,
-  }])
+const WELCOME = {
+  role: 'assistant',
+  content: `Hi! I'm **ContriGraph**. I've loaded your GitHub graph — you know **Python, JavaScript, TypeScript, Java, Go, Dart, and HTML**.\n\nWhat kind of open source issue are you looking for today?`,
+}
+
+export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone }) {
+  const storageKey = `contrigraph-chat-${username}`
+
+  const [messages, setMessages] = useState(() => {
+    try {
+      const saved = localStorage.getItem(storageKey)
+      if (saved) return JSON.parse(saved)
+    } catch {}
+    return [WELCOME]
+  })
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [activeTools, setActiveTools] = useState([])
   const bottomRef = useRef(null)
+
+  // Persist messages to localStorage whenever they change
+  useEffect(() => {
+    try { localStorage.setItem(storageKey, JSON.stringify(messages)) } catch {}
+  }, [messages])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -187,7 +202,7 @@ export default function ChatPanel({ username, sessionId, onToolCall }) {
           return updated
         })
       },
-      onDone: () => { setLoading(false); setActiveTools([]) },
+      onDone: () => { setLoading(false); setActiveTools([]); onAgentDone?.() },
     })
     setLoading(false)
     setActiveTools([])

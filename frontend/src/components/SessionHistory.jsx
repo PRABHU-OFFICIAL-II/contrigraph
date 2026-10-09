@@ -9,12 +9,22 @@ const ACTION_STYLES = {
   applied_to: { icon: '✅', color: '#22c55e' },
 }
 
-export default function SessionHistory({ username }) {
+export default function SessionHistory({ username, refreshTick }) {
   const [history, setHistory] = useState([])
 
-  useEffect(() => {
+  function load() {
     if (!username) return
     getSessionHistory(username, 7).then(data => setHistory(Array.isArray(data) ? data : []))
+  }
+
+  // Load on mount and whenever refreshTick changes (triggered by parent after agent responds)
+  useEffect(() => { load() }, [username, refreshTick])
+
+  // Also poll every 10 seconds so new VIEWED records surface automatically
+  useEffect(() => {
+    if (!username) return
+    const id = setInterval(load, 10000)
+    return () => clearInterval(id)
   }, [username])
 
   return (
