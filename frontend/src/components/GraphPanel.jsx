@@ -231,11 +231,12 @@ export default function GraphPanel({ username, highlightIds = [] }) {
             backgroundColor="#080d14"
             d3AlphaDecay={1}
             d3VelocityDecay={1}
-            cooldownTicks={0}
+            cooldownTicks={1}
             enableNodeDrag={false}
             onEngineStop={() => fgRef.current?.zoomToFit(400, 50)}
             nodePointerAreaPaint={(node, color, ctx) => {
-              const r = (NODE_R[node.type] ?? 4) + 10
+              // Large hit area = circle radius + generous padding so the dot is easy to hover
+              const r = (NODE_R[node.type] ?? 4) + 18
               ctx.fillStyle = color
               ctx.beginPath()
               ctx.arc(node.x, node.y, r, 0, 2 * Math.PI)
