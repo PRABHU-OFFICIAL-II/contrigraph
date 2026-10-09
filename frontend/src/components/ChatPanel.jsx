@@ -5,6 +5,19 @@ import { streamChat } from '../utils/api.js'
 
 const FONT = 'Verdana, Geneva, Tahoma, sans-serif'
 
+const LIGHT = {
+  bg: '#f9fafb', surface: '#ffffff', surface2: '#fafafa',
+  border: '#e5e7eb', border2: '#f3f4f6',
+  text: '#111827', textMuted: '#6b7280', textSubtle: '#9ca3af', textFaint: '#d1d5db',
+  input: '#f9fafb', hover: '#f3f4f6',
+}
+const DARK = {
+  bg: '#0f172a', surface: '#1e293b', surface2: '#162032',
+  border: '#334155', border2: '#243044',
+  text: '#e2e8f0', textMuted: '#94a3b8', textSubtle: '#64748b', textFaint: '#475569',
+  input: '#162032', hover: '#243044',
+}
+
 const SUGGESTED = [
   { icon: '🔍', text: 'Find me beginner Python issues with active maintainers' },
   { icon: '🎯', text: 'What open source issues match my skills?' },
@@ -24,9 +37,9 @@ const TOOL_LABELS = {
   ingest_repo_issues:    '📥 Ingested repo issues',
 }
 
-function makeComponents() {
+function makeComponents(T) {
   return {
-    p: ({ children }) => <p style={{ margin: '0 0 10px', lineHeight: '1.75', color: '#374151', fontFamily: FONT }}>{children}</p>,
+    p: ({ children }) => <p style={{ margin: '0 0 10px', lineHeight: '1.75', color: T.text, fontFamily: FONT }}>{children}</p>,
     code: ({ inline, children }) =>
       inline ? (
         <code style={{
@@ -35,12 +48,12 @@ function makeComponents() {
         }}>{children}</code>
       ) : (
         <pre style={{
-          background: '#f9fafb', padding: '12px 14px', borderRadius: '8px',
+          background: T.surface2, padding: '12px 14px', borderRadius: '8px',
           fontSize: '12px', fontFamily: 'Consolas, monospace', overflowX: 'auto',
-          margin: '8px 0', border: '1px solid #e5e7eb',
-        }}><code style={{ color: '#111827' }}>{children}</code></pre>
+          margin: '8px 0', border: `1px solid ${T.border}`,
+        }}><code style={{ color: T.text }}>{children}</code></pre>
       ),
-    strong: ({ children }) => <strong style={{ color: '#111827', fontWeight: '700', fontFamily: FONT }}>{children}</strong>,
+    strong: ({ children }) => <strong style={{ color: T.text, fontWeight: '700', fontFamily: FONT }}>{children}</strong>,
     a: ({ href, children }) => (
       <a href={href} target="_blank" rel="noopener noreferrer" style={{
         color: '#7c3aed', fontWeight: '600', textDecoration: 'underline',
@@ -50,25 +63,25 @@ function makeComponents() {
     ),
     ul: ({ children }) => <ul style={{ paddingLeft: '18px', margin: '6px 0 10px', fontFamily: FONT }}>{children}</ul>,
     ol: ({ children }) => <ol style={{ paddingLeft: '18px', margin: '6px 0 10px', fontFamily: FONT }}>{children}</ol>,
-    li: ({ children }) => <li style={{ marginBottom: '4px', lineHeight: '1.75', color: '#374151', fontFamily: FONT }}>{children}</li>,
-    h1: ({ children }) => <h1 style={{ fontSize: '15px', fontWeight: '800', color: '#111827', margin: '12px 0 7px', borderBottom: '1px solid #e5e7eb', paddingBottom: '5px', fontFamily: FONT }}>{children}</h1>,
-    h2: ({ children }) => <h2 style={{ fontSize: '13px', fontWeight: '700', color: '#111827', margin: '10px 0 5px', fontFamily: FONT }}>{children}</h2>,
-    h3: ({ children }) => <h3 style={{ fontSize: '12px', fontWeight: '700', color: '#374151', margin: '8px 0 4px', fontFamily: FONT }}>{children}</h3>,
-    hr: () => <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '12px 0' }} />,
+    li: ({ children }) => <li style={{ marginBottom: '4px', lineHeight: '1.75', color: T.text, fontFamily: FONT }}>{children}</li>,
+    h1: ({ children }) => <h1 style={{ fontSize: '15px', fontWeight: '800', color: T.text, margin: '12px 0 7px', borderBottom: `1px solid ${T.border}`, paddingBottom: '5px', fontFamily: FONT }}>{children}</h1>,
+    h2: ({ children }) => <h2 style={{ fontSize: '13px', fontWeight: '700', color: T.text, margin: '10px 0 5px', fontFamily: FONT }}>{children}</h2>,
+    h3: ({ children }) => <h3 style={{ fontSize: '12px', fontWeight: '700', color: T.textMuted, margin: '8px 0 4px', fontFamily: FONT }}>{children}</h3>,
+    hr: () => <hr style={{ border: 'none', borderTop: `1px solid ${T.border}`, margin: '12px 0' }} />,
     blockquote: ({ children }) => (
       <blockquote style={{
         borderLeft: '3px solid #7c3aed', paddingLeft: '12px', margin: '8px 0',
-        color: '#6b7280', fontStyle: 'italic',
+        color: T.textMuted, fontStyle: 'italic',
       }}>{children}</blockquote>
     ),
     table: ({ children }) => (
-      <div style={{ overflowX: 'auto', margin: '10px 0', borderRadius: '8px', border: '1px solid #e5e7eb' }}>
+      <div style={{ overflowX: 'auto', margin: '10px 0', borderRadius: '8px', border: `1px solid ${T.border}` }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>{children}</table>
       </div>
     ),
     thead: ({ children }) => <thead style={{ background: '#ede9fe' }}>{children}</thead>,
     tbody: ({ children }) => <tbody>{children}</tbody>,
-    tr: ({ children }) => <tr style={{ borderBottom: '1px solid #f3f4f6' }}>{children}</tr>,
+    tr: ({ children }) => <tr style={{ borderBottom: `1px solid ${T.border2}` }}>{children}</tr>,
     th: ({ children }) => (
       <th style={{
         padding: '8px 12px', textAlign: 'left', color: '#7c3aed',
@@ -77,12 +90,12 @@ function makeComponents() {
       }}>{children}</th>
     ),
     td: ({ children }) => (
-      <td style={{ padding: '7px 12px', color: '#374151', verticalAlign: 'top', fontSize: '12px', lineHeight: '1.6', fontFamily: FONT }}>{children}</td>
+      <td style={{ padding: '7px 12px', color: T.text, verticalAlign: 'top', fontSize: '12px', lineHeight: '1.6', fontFamily: FONT }}>{children}</td>
     ),
   }
 }
 
-function ToolSummary({ tools }) {
+function ToolSummary({ tools, T }) {
   const [open, setOpen] = useState(false)
   if (!tools?.length) return null
   const unique = [...new Set(tools)]
@@ -110,12 +123,12 @@ function ToolSummary({ tools }) {
       {open && (
         <div style={{
           marginTop: '6px', padding: '8px 12px',
-          background: '#f9fafb', border: '1px solid #e5e7eb',
+          background: T.surface2, border: `1px solid ${T.border}`,
           borderRadius: '8px', display: 'flex', flexDirection: 'column', gap: '4px',
           animation: 'fadeInUp 0.2s ease both',
         }}>
           {tools.map((t, i) => (
-            <span key={i} style={{ color: '#6b7280', fontSize: '11px', fontFamily: FONT }}>
+            <span key={i} style={{ color: T.textMuted, fontSize: '11px', fontFamily: FONT }}>
               {TOOL_LABELS[t] || `🔧 ${t}`}
             </span>
           ))}
@@ -130,7 +143,8 @@ const WELCOME = {
   content: `Hi! I'm **ContriGraph**. I've loaded your GitHub graph — you know **Python, JavaScript, TypeScript, Java, Go, Dart, and HTML**.\n\nWhat kind of open source issue are you looking for today?`,
 }
 
-export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone }) {
+export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone, darkMode }) {
+  const T = darkMode ? DARK : LIGHT
   const storageKey = `contrigraph-chat-${username}`
   const [messages, setMessages] = useState(() => {
     try {
@@ -199,8 +213,10 @@ export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone
     if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send() }
   }
 
+  const components = makeComponents(T)
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#f9fafb', fontFamily: FONT }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: T.bg, fontFamily: FONT }}>
 
       {/* Messages */}
       <div style={{ flex: 1, overflowY: 'auto', padding: '20px 22px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
@@ -210,20 +226,20 @@ export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone
             alignItems: m.role === 'user' ? 'flex-end' : 'flex-start',
             animation: 'messageIn 0.3s ease both',
           }}>
-            {m.toolCalls?.length > 0 && <ToolSummary tools={m.toolCalls} />}
+            {m.toolCalls?.length > 0 && <ToolSummary tools={m.toolCalls} T={T} />}
             {(m.content || m.role === 'user') && (
               <div style={{
                 maxWidth: m.role === 'user' ? '72%' : '92%',
                 padding: '12px 16px',
                 borderRadius: m.role === 'user' ? '16px 16px 4px 16px' : '4px 16px 16px 16px',
-                background: m.role === 'user' ? '#7c3aed' : '#ffffff',
-                border: m.role === 'user' ? 'none' : '1px solid #e5e7eb',
-                color: m.role === 'user' ? '#ffffff' : '#111827',
+                background: m.role === 'user' ? '#7c3aed' : T.surface,
+                border: m.role === 'user' ? 'none' : `1px solid ${T.border}`,
+                color: m.role === 'user' ? '#ffffff' : T.text,
                 fontSize: '13px', lineHeight: '1.7', fontFamily: FONT,
                 boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
               }}>
                 {m.role === 'assistant'
-                  ? <ReactMarkdown remarkPlugins={[remarkGfm]} components={makeComponents()}>{m.content}</ReactMarkdown>
+                  ? <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>{m.content}</ReactMarkdown>
                   : <span style={{ fontFamily: FONT }}>{m.content}</span>
                 }
               </div>
@@ -236,7 +252,7 @@ export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', animation: 'fadeInUp 0.2s ease both' }}>
             <div style={{
               display: 'flex', gap: '4px', padding: '11px 16px',
-              background: '#ffffff', border: '1px solid #e5e7eb',
+              background: T.surface, border: `1px solid ${T.border}`,
               borderRadius: '4px 16px 16px 16px',
               boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
             }}>
@@ -270,14 +286,14 @@ export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone
           {SUGGESTED.map((s, i) => (
             <button key={i} onClick={() => send(s.text)} style={{
               display: 'flex', alignItems: 'center', gap: '6px',
-              background: '#ffffff', border: '1px solid #e5e7eb',
-              borderRadius: '20px', color: '#6b7280', padding: '6px 13px',
+              background: T.surface, border: `1px solid ${T.border}`,
+              borderRadius: '20px', color: T.textMuted, padding: '6px 13px',
               fontSize: '11px', cursor: 'pointer', fontFamily: FONT,
               transition: 'all 0.18s ease',
               opacity: 0, animation: `fadeInUp 0.3s ease ${0.05 + i * 0.06}s both`,
             }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = '#7c3aed'; e.currentTarget.style.color = '#7c3aed'; e.currentTarget.style.transform = 'translateY(-1px)' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = '#e5e7eb'; e.currentTarget.style.color = '#6b7280'; e.currentTarget.style.transform = 'translateY(0)' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.textMuted; e.currentTarget.style.transform = 'translateY(0)' }}
             >
               {s.icon} {s.text}
             </button>
@@ -288,7 +304,7 @@ export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone
       {/* Input */}
       <div style={{
         padding: '14px 22px 16px',
-        borderTop: '1px solid #e5e7eb', background: '#ffffff',
+        borderTop: `1px solid ${T.border}`, background: T.surface,
       }}>
         <div style={{ display: 'flex', gap: '8px', alignItems: 'flex-end' }}>
           <textarea
@@ -300,32 +316,32 @@ export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone
             placeholder="Ask about issues, skills, maintainers…"
             style={{
               flex: 1, padding: '11px 14px',
-              background: '#f9fafb', border: '1px solid #e5e7eb',
-              borderRadius: '10px', color: '#111827', fontSize: '13px',
+              background: T.input, border: `1px solid ${T.border}`,
+              borderRadius: '10px', color: T.text, fontSize: '13px',
               outline: 'none', resize: 'none', lineHeight: '1.6',
               fontFamily: FONT, transition: 'border-color 0.18s, box-shadow 0.18s',
             }}
-            onFocus={e => { e.target.style.borderColor = '#7c3aed'; e.target.style.boxShadow = '0 0 0 3px rgba(124,58,237,0.1)'; e.target.style.background = '#ffffff' }}
-            onBlur={e => { e.target.style.borderColor = '#e5e7eb'; e.target.style.boxShadow = 'none'; e.target.style.background = '#f9fafb' }}
+            onFocus={e => { e.target.style.borderColor = '#7c3aed'; e.target.style.boxShadow = '0 0 0 3px rgba(124,58,237,0.1)'; e.target.style.background = T.surface }}
+            onBlur={e => { e.target.style.borderColor = T.border; e.target.style.boxShadow = 'none'; e.target.style.background = T.input }}
           />
           <button
             onClick={() => send()}
             disabled={loading || !input.trim()}
             style={{
               padding: '11px 20px', borderRadius: '10px', border: 'none',
-              background: loading || !input.trim() ? '#e5e7eb' : '#7c3aed',
-              color: loading || !input.trim() ? '#9ca3af' : '#ffffff',
+              background: loading || !input.trim() ? (darkMode ? '#334155' : '#e5e7eb') : '#7c3aed',
+              color: loading || !input.trim() ? T.textSubtle : '#ffffff',
               fontWeight: '700', fontSize: '13px', fontFamily: FONT,
               cursor: loading || !input.trim() ? 'not-allowed' : 'pointer',
               transition: 'all 0.18s ease', flexShrink: 0,
             }}
             onMouseEnter={e => { if (!loading && input.trim()) { e.currentTarget.style.background = '#6d28d9'; e.currentTarget.style.transform = 'translateY(-1px)' } }}
-            onMouseLeave={e => { e.currentTarget.style.background = loading || !input.trim() ? '#e5e7eb' : '#7c3aed'; e.currentTarget.style.transform = 'translateY(0)' }}
+            onMouseLeave={e => { e.currentTarget.style.background = loading || !input.trim() ? (darkMode ? '#334155' : '#e5e7eb') : '#7c3aed'; e.currentTarget.style.transform = 'translateY(0)' }}
           >
             {loading ? '…' : 'Send'}
           </button>
         </div>
-        <p style={{ color: '#d1d5db', fontSize: '10px', marginTop: '6px', marginBottom: 0, fontFamily: FONT }}>
+        <p style={{ color: T.textFaint, fontSize: '10px', marginTop: '6px', marginBottom: 0, fontFamily: FONT }}>
           Enter to send · Shift+Enter for new line
         </p>
       </div>

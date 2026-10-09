@@ -3,6 +3,13 @@ import { getSessionHistory } from '../utils/api.js'
 
 const FONT = 'Verdana, Geneva, Tahoma, sans-serif'
 
+const LIGHT = {
+  text: '#374151', textSubtle: '#9ca3af', textFaint: '#d1d5db', hover: '#f3f4f6',
+}
+const DARK = {
+  text: '#e2e8f0', textSubtle: '#64748b', textFaint: '#475569', hover: '#243044',
+}
+
 const ACTION_STYLES = {
   viewed:     { icon: '👁', color: '#6b7280' },
   bookmarked: { icon: '🔖', color: '#d97706' },
@@ -11,7 +18,8 @@ const ACTION_STYLES = {
   applied_to: { icon: '✅', color: '#16a34a' },
 }
 
-export default function SessionHistory({ username, refreshTick }) {
+export default function SessionHistory({ username, refreshTick, darkMode }) {
+  const T = darkMode ? DARK : LIGHT
   const [history, setHistory] = useState([])
 
   function load() {
@@ -32,7 +40,7 @@ export default function SessionHistory({ username, refreshTick }) {
       {history.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '20px 0', animation: 'fadeIn 0.3s ease both' }}>
           <div style={{ fontSize: '20px', marginBottom: '6px' }}>🌱</div>
-          <p style={{ color: '#d1d5db', fontSize: '11px', lineHeight: '1.5', fontFamily: FONT }}>
+          <p style={{ color: T.textFaint, fontSize: '11px', lineHeight: '1.5', fontFamily: FONT }}>
             No history yet.<br />Start exploring issues!
           </p>
         </div>
@@ -49,18 +57,18 @@ export default function SessionHistory({ username, refreshTick }) {
                 opacity: 0,
                 animation: `fadeInUp 0.3s ease ${Math.min(i * 0.04, 0.25)}s both`,
               }}
-              onMouseEnter={e => e.currentTarget.style.background = '#f3f4f6'}
+              onMouseEnter={e => e.currentTarget.style.background = T.hover}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
               <span style={{ fontSize: '11px', flexShrink: 0, marginTop: '1px' }}>{s.icon}</span>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{
-                  color: '#374151', fontSize: '11px', lineHeight: '1.4',
+                  color: T.text, fontSize: '11px', lineHeight: '1.4',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   fontFamily: FONT, fontWeight: '500',
                 }}>{item.title || 'Untitled issue'}</div>
                 <div style={{
-                  color: '#9ca3af', fontSize: '10px', marginTop: '2px',
+                  color: T.textSubtle, fontSize: '10px', marginTop: '2px',
                   overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                   fontFamily: FONT,
                 }}>{item.repo || ''}</div>
