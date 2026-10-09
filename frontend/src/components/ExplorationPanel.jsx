@@ -12,57 +12,78 @@ function complexityColor(c) {
   return COMPLEXITY_COLOR[(c || '').toLowerCase()] || '#6b7280'
 }
 
-const NODE_R = { repo: 12, issue: 6, maintainer: 8 }
+const NODE_R = { developer: 14, repo: 10, maintainer: 7, issue: 5 }
 
-/* Convert /api/graph/exploration payload → {nodes, links} for canvas */
-function buildGraph(data) {
+function ring(count, radius, offset = -Math.PI / 2) {
+  return Array.from({ length: count }, (_, i) => {
+    const a = offset + (i / count) * 2 * Math.PI
+    return { x: Math.cos(a) * radius, y: Math.sin(a) * radius }
+  })
+}
+
+/* Convert /api/graph/exploration payload → {nodes, links} with concentric layout:
+   center=developer, ring1=repos, ring2=maintainers, ring3=issues */
+function buildGraph(data, username) {
   const nodes = []
   const links = []
   const repos = data.repos || []
 
+  // Center — developer node
+  const devId = 'dev'
+  nodes.push({ id: devId, kind: 'developer', label: username || 'You', x: 0, y: 0 })
+
+  // Ring 1 — repos (r=140)
+  const repoPositions = ring(repos.length || 1, 140)
   repos.forEach((repo, ri) => {
     const repoId = `repo_${ri}`
-    nodes.push({ id: repoId, kind: 'repo', label: repo.full_name?.split('/')[1] || repo.full_name, full_name: repo.full_name, stars: repo.stars, response_days: repo.avg_response_days, x: 0, y: 0 })
-
-    if (repo.maintainer) {
-      const mId = `m_${ri}`
-      nodes.push({ id: mId, kind: 'maintainer', label: repo.maintainer, response_days: repo.avg_response_days, x: 0, y: 0 })
-      links.push({ source: repoId, target: mId })
-    }
-
-    ;(repo.issues || []).forEach((iss, ii) => {
-      const issId = `iss_${ri}_${ii}`
-      nodes.push({ id: issId, kind: 'issue', label: iss.title, url: iss.url, complexity: iss.complexity, x: 0, y: 0 })
-      links.push({ source: repoId, target: issId })
+    const pos = repoPositions[ri] || { x: 0, y: 0 }
+    nodes.push({
+      id: repoId, kind: 'repo',
+      label: repo.full_name?.split('/')[1] || repo.full_name,
+      full_name: repo.full_name, stars: repo.stars,
+      response_days: repo.avg_response_days,
+      x: pos.x, y: pos.y,
     })
+    links.push({ source: devId, target: repoId })
   })
 
-  /* Layout: repos in a ring, their children fanning out */
-  const repoNodes = nodes.filter(n => n.kind === 'repo')
-  const repoRing = 130
-
-  repoNodes.forEach((rn, ri) => {
-    const angle = repoNodes.length === 1
-      ? -Math.PI / 2
-      : (ri / repoNodes.length) * 2 * Math.PI - Math.PI / 2
-    rn.x = Math.cos(angle) * repoRing
-    rn.y = Math.sin(angle) * repoRing
-
-    const children = links.filter(l => l.source === rn.id).map(l => nodes.find(n => n.id === l.target))
-    const childRing = 80
-    children.forEach((cn, ci) => {
-      if (!cn) return
-      const spread = children.length === 1 ? 0 : ((ci / children.length) - 0.5) * Math.PI * 0.9
-      const childAngle = angle + spread
-      cn.x = rn.x + Math.cos(childAngle) * childRing
-      cn.y = rn.y + Math.sin(childAngle) * childRing
+  // Ring 2 — maintainers (r=240), one per repo, placed near their repo's angle
+  repos.forEach((repo, ri) => {
+    if (!repo.maintainer) return
+    const repoId = `repo_${ri}`
+    const mId = `m_${ri}`
+    const angle = repos.length === 1 ? -Math.PI / 2 : -Math.PI / 2 + (ri / repos.length) * 2 * Math.PI
+    nodes.push({
+      id: mId, kind: 'maintainer',
+      label: repo.maintainer,
+      response_days: repo.avg_response_days,
+      x: Math.cos(angle) * 240,
+      y: Math.sin(angle) * 240,
     })
+    links.push({ source: repoId, target: mId })
+  })
+
+  // Ring 3 — issues (r=340), spread around the circle across all repos
+  const allIssues = repos.flatMap((repo, ri) =>
+    (repo.issues || []).map(iss => ({ ...iss, repoId: `repo_${ri}`, repoIdx: ri, repoCount: repos.length }))
+  )
+  const issuePositions = ring(allIssues.length || 1, 340)
+  allIssues.forEach((iss, ii) => {
+    const issId = `iss_${ii}`
+    const pos = issuePositions[ii] || { x: 0, y: 340 }
+    nodes.push({
+      id: issId, kind: 'issue',
+      label: iss.title, url: iss.url, complexity: iss.complexity,
+      x: pos.x, y: pos.y,
+    })
+    links.push({ source: iss.repoId, target: issId })
   })
 
   return { nodes, links }
 }
 
 function nodeColor(node) {
+  if (node.kind === 'developer') return '#7c3aed'
   if (node.kind === 'repo') return '#0891b2'
   if (node.kind === 'maintainer') return '#d97706'
   return complexityColor(node.complexity)
@@ -89,7 +110,7 @@ export default function ExplorationPanel({ username, refreshTick = 0 }) {
     fetch(`/api/graph/exploration?username=${username}`)
       .then(r => r.json())
       .then(d => {
-        const gd = buildGraph(d)
+        const gd = buildGraph(d, username)
         setGraphData(gd)
         setRepoCount(d.repos?.length || 0)
         nodeMap.current = {}
@@ -134,40 +155,42 @@ export default function ExplorationPanel({ username, refreshTick = 0 }) {
     for (const node of graphData.nodes) {
       const r = nodeRadius(node)
       const col = nodeColor(node)
+      const isCenter = node.kind === 'developer'
 
-      if (node.kind === 'repo') {
-        ctx.shadowColor = col + '60'
-        ctx.shadowBlur = 14 / zoom
+      if (isCenter || node.kind === 'repo') {
+        ctx.shadowColor = col + '70'
+        ctx.shadowBlur = (isCenter ? 18 : 10) / zoom
       }
 
       ctx.beginPath()
       ctx.arc(node.x, node.y, r, 0, 2 * Math.PI)
       ctx.fillStyle = col
-      ctx.globalAlpha = 0.9
+      ctx.globalAlpha = isCenter ? 1 : 0.88
       ctx.fill()
       ctx.globalAlpha = 1
       ctx.shadowBlur = 0
 
-      if (node.kind === 'repo') {
+      if (isCenter || node.kind === 'repo') {
         ctx.strokeStyle = '#ffffff'
         ctx.lineWidth = 2 / zoom
         ctx.stroke()
       }
 
-      /* Labels for repo nodes and maintainers */
-      if (node.kind === 'repo' || node.kind === 'maintainer') {
-        const label = node.label?.length > 16 ? node.label.slice(0, 15) + '…' : node.label || ''
-        const fontSize = Math.max(7, (node.kind === 'repo' ? 10 : 8) / zoom)
-        ctx.font = `${node.kind === 'repo' ? '700 ' : ''}${fontSize}px Verdana, sans-serif`
+      /* Labels */
+      const showLabel = isCenter || node.kind === 'repo' || node.kind === 'maintainer'
+      if (showLabel) {
+        const raw = node.label || ''
+        const label = raw.length > 18 ? raw.slice(0, 17) + '…' : raw
+        const fontSize = Math.max(7, (isCenter ? 11 : node.kind === 'repo' ? 9 : 8) / zoom)
+        ctx.font = `${isCenter || node.kind === 'repo' ? '700 ' : ''}${fontSize}px Verdana, sans-serif`
         const tw = ctx.measureText(label).width
-        const lx = node.x
         const ly = node.y + r + 3 / zoom
         ctx.fillStyle = 'rgba(255,255,255,0.92)'
-        ctx.fillRect(lx - tw / 2 - 2 / zoom, ly, tw + 4 / zoom, fontSize + 3 / zoom)
-        ctx.fillStyle = node.kind === 'repo' ? '#0e7490' : '#92400e'
+        ctx.fillRect(node.x - tw / 2 - 2 / zoom, ly, tw + 4 / zoom, fontSize + 3 / zoom)
+        ctx.fillStyle = isCenter ? '#4c1d95' : node.kind === 'repo' ? '#0e7490' : '#92400e'
         ctx.textAlign = 'center'
         ctx.textBaseline = 'top'
-        ctx.fillText(label, lx, ly + 1 / zoom)
+        ctx.fillText(label, node.x, ly + 1 / zoom)
       }
     }
 
@@ -360,7 +383,7 @@ export default function ExplorationPanel({ username, refreshTick = 0 }) {
               fontSize: '10px', fontWeight: '700', textTransform: 'capitalize',
             }}>{tooltip.kind}</div>
             <div style={{ fontWeight: '700', marginBottom: '3px', wordBreak: 'break-word', fontSize: '12px' }}>
-              {tooltip.kind === 'repo' ? tooltip.full_name : tooltip.label}
+              {tooltip.kind === 'developer' ? `@${tooltip.label}` : tooltip.kind === 'repo' ? tooltip.full_name : tooltip.label}
             </div>
             {tooltip.kind === 'repo' && (
               <div style={{ color: '#64748b', fontSize: '11px' }}>
