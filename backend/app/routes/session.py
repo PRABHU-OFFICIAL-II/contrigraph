@@ -14,16 +14,24 @@ class ActionRequest(BaseModel):
 
 @router.get("/{username}")
 def get_session_history(username: str, days_back: int = Query(7)):
-    return g.query_session_history(username, days_back)
+    try:
+        return g.query_session_history(username, days_back)
+    except Exception as exc:
+        print(f"[session] get_session_history error: {exc}")
+        return []
 
 
 @router.post("/{username}/action")
 def record_action(username: str, req: ActionRequest):
-    g.write_session_action(
-        username=username,
-        issue_id=req.issue_id,
-        action=req.action,
-        session_id=req.session_id,
-        reason=req.reason,
-    )
-    return {"status": "ok"}
+    try:
+        g.write_session_action(
+            username=username,
+            issue_id=req.issue_id,
+            action=req.action,
+            session_id=req.session_id,
+            reason=req.reason,
+        )
+        return {"status": "ok"}
+    except Exception as exc:
+        print(f"[session] record_action error: {exc}")
+        return {"status": "error", "detail": str(exc)}
