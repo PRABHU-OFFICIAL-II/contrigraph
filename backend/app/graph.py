@@ -315,11 +315,10 @@ def query_session_history(username: str, days_back: int = 7) -> list:
     g = get_graph()
     result = g.query(
         """
-        MATCH (d:Developer {username: $username})-[v]->(i:Issue)
-        WHERE type(v) IN ['VIEWED', 'BOOKMARKED', 'SKIPPED', 'APPLIED_TO']
+        MATCH (d:Developer {username: $username})-[v:VIEWED|BOOKMARKED|SKIPPED|APPLIED_TO]->(i:Issue)
         OPTIONAL MATCH (i)<-[:HAS_ISSUE]-(r:Repository)
         RETURN i.title AS title, i.url AS url,
-               COALESCE(r.full_name, i.id) AS repo,
+               r.full_name AS repo,
                type(v) AS action,
                v.timestamp AS viewed_at
         ORDER BY v.timestamp DESC
