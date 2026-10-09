@@ -159,7 +159,7 @@ def _request_headers() -> dict:
     }
 
 
-def _call_model_sync(messages: list, max_tokens: int = 4096) -> dict:
+def _call_model_sync(messages: list, system: str, max_tokens: int = 4096) -> dict:
     """
     Call the Salesforce Bedrock proxy directly.
     URL: {BASE_URL}/model/{MODEL}/invoke
@@ -169,7 +169,7 @@ def _call_model_sync(messages: list, max_tokens: int = 4096) -> dict:
     body = {
         "anthropic_version": "bedrock-2023-05-31",
         "max_tokens": max_tokens,
-        "system": SYSTEM_PROMPT,
+        "system": system,
         "messages": messages,
         "tools": TOOLS,
     }
@@ -188,12 +188,21 @@ async def run_agent_stream(
     Agentic loop: call the model, handle tool_use, loop until plain text response.
     Yields SSE-formatted chunks.
     """
+    # Build a per-request system prompt that always includes the user's identity
+    system = (
+        SYSTEM_PROMPT
+        + f"\n\nThe currently logged-in GitHub user is: @{username}. "
+        "Their profile and repositories are already loaded in FalkorDB. "
+        "NEVER ask for a GitHub username — always use this username for all tool calls."
+        f"\nSession ID: {session_id}"
+    )
+
     messages = list(history or [])
     messages.append({"role": "user", "content": message})
 
     while True:
         try:
-            response = await asyncio.to_thread(_call_model_sync, messages)
+            response = await asyncio.to_thread(_call_model_sync, messages, system)
         except httpx.HTTPStatusError as exc:
             yield f"data: {json.dumps({'type': 'text', 'content': f'Error calling model: {exc.response.text}'})}\n\n"
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
