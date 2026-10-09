@@ -41,15 +41,10 @@ function layoutNodes(data) {
 
   const devs        = (byType.Developer  || []).map(n => ({ ...n, x: 0, y: 0, fx: 0, fy: 0 }))
   const repos       = circle(byType.Repository  || [], 140)
-  const skills      = circle(byType.Skill       || [], 260)
-  const maintainers = circle(byType.Maintainer  || [], 330)
-  const pin = nodes => nodes.map((n, i) => {
-    const x = (Math.random() - 0.5) * 100
-    const y = (Math.random() - 0.5) * 100
-    return { ...n, x, y, fx: x, fy: y }
-  })
-  const issues  = pin(byType.Issue  || [])
-  const topics  = pin(byType.Topic  || [])
+  const skills      = circle(byType.Skill       || [], 270)
+  const maintainers = circle(byType.Maintainer  || [], 340)
+  const issues      = circle(byType.Issue       || [], 420)   // outermost ring
+  const topics      = circle(byType.Topic       || [], 490)
 
   return { ...data, nodes: [...devs, ...repos, ...skills, ...maintainers, ...issues, ...topics] }
 }
@@ -135,9 +130,9 @@ export default function GraphPanel({ username, highlightIds = [] }) {
     }
 
     // Always show labels for Developer, Repository, Skill
-    // Show Issue/Maintainer/Topic only at higher zoom
+    // Issues have long titles — only show on hover (highlighted) or high zoom
     const alwaysLabel = isDev || hl || node.type === 'Repository' || node.type === 'Skill'
-    const showLabel = alwaysLabel || globalScale >= 2
+    const showLabel = alwaysLabel || globalScale >= 2.5
     if (!showLabel) return
 
     const fontSize = Math.max(7, (isDev ? 11 : node.type === 'Repository' ? 9 : 8) / globalScale)
