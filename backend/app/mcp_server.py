@@ -51,6 +51,16 @@ async def _dispatch(name: str, args: dict):
             )
             print(f"[find_matching_issues] after auto-ingest: {len(issues)} issues")
 
+        # Complexity filter too strict — relax it and retry without complexity
+        if not issues and args.get("complexity"):
+            issues = g.query_matching_issues(
+                username=username,
+                max_response_days=max_days,
+                skill=skill,
+                limit=args.get("limit", 10),
+            )
+            print(f"[find_matching_issues] after relaxing complexity: {len(issues)} issues")
+
         # Auto-write VIEWED for every returned issue so history is always populated
         session_id = args.get("session_id", f"{username}-auto")
         for issue in issues:
