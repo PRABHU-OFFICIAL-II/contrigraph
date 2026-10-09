@@ -47,6 +47,13 @@ def get_repo_topics(owner: str, repo: str) -> list[str]:
     return resp.json().get("names", [])
 
 
+def search_repos_by_skill(skill: str, min_stars: int = 500, limit: int = 3) -> list[str]:
+    """Search GitHub for popular repos in a given language that have beginner-friendly issues."""
+    query = f"language:{skill} stars:>{min_stars} good-first-issues:>5"
+    data = _get("/search/repositories", {"q": query, "sort": "stars", "per_page": limit}) or {}
+    return [item["full_name"] for item in data.get("items", []) if item.get("full_name")]
+
+
 def get_repo_issues(owner: str, repo: str, label: str = None, per_page: int = 50) -> list:
     """
     Fetch open issues for a repo. Tries multiple beginner-friendly labels in order,

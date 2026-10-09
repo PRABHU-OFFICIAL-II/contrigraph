@@ -28,22 +28,13 @@ async def _dispatch(name: str, args: dict):
         # If empty, auto-ingest issues for repos matching the skill/user's skills then retry
         if not issues:
             repos_to_ingest = g.get_repos_without_issues(username, limit=5)
-            # Fallback: seed well-known repos for the requested skill (or Python by default)
+            # Fallback: search GitHub dynamically for popular repos in the requested skill
+            if not repos_to_ingest and skill:
+                repos_to_ingest = ingestion.gh.search_repos_by_skill(skill, limit=3)
+                print(f"[find_matching_issues] GitHub search for skill={skill!r}: {repos_to_ingest}")
+            # Last resort: fall back to popular Python repos
             if not repos_to_ingest:
-                SKILL_SEED_REPOS = {
-                    "dart":       ["dart-lang/sdk", "flutter/flutter"],
-                    "go":         ["golang/go", "gin-gonic/gin"],
-                    "typescript": ["microsoft/TypeScript", "denoland/deno"],
-                    "javascript": ["facebook/react", "vuejs/core"],
-                    "python":     ["psf/requests", "pallets/flask", "encode/httpx"],
-                    "java":       ["spring-projects/spring-framework", "apache/kafka"],
-                    "html":       ["whatwg/html", "mdn/content"],
-                    "rust":       ["rust-lang/rust", "tokio-rs/tokio"],
-                }
-                if skill and skill in SKILL_SEED_REPOS:
-                    repos_to_ingest = SKILL_SEED_REPOS[skill]
-                else:
-                    repos_to_ingest = ["psf/requests", "pallets/flask", "encode/httpx"]
+                repos_to_ingest = ["psf/requests", "pallets/flask"]
             print(f"[find_matching_issues] no issues — auto-ingesting {repos_to_ingest}")
             for repo in repos_to_ingest:
                 try:
