@@ -27,9 +27,11 @@ const NODE_R = {
  *   Ring 2 (r=260): Skill      — outer ring
  *   Others:         random within inner area
  */
-function layoutNodes(data) {
+function layoutNodes(data, currentUser) {
   const byType = {}
   for (const n of data.nodes) {
+    // Skip Developer nodes that aren't the logged-in user
+    if (n.type === 'Developer' && currentUser && n.name !== currentUser) continue
     ;(byType[n.type] = byType[n.type] || []).push(n)
   }
 
@@ -81,7 +83,7 @@ export default function GraphPanel({ username, highlightIds = [] }) {
     if (!username) return
     fetch(`/api/graph/data?username=${username}`)
       .then(r => r.json())
-      .then(data => setGraphData(layoutNodes(data)))
+      .then(data => setGraphData(layoutNodes(data, username)))
   }, [username])
 
   // After layout is set, tune forces gently and zoom to fit
