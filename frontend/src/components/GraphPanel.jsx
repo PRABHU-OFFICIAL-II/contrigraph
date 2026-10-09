@@ -47,7 +47,7 @@ function displayName(node) {
   return n.length > 18 ? n.slice(0, 17) + '…' : n
 }
 
-export default function GraphPanel({ username, highlightIds = [] }) {
+export default function GraphPanel({ username, highlightIds = [], visible = true }) {
   const [graphData, setGraphData] = useState({ nodes: [], links: [] })
   const containerRef = useRef(null)
   const canvasRef    = useRef(null)
@@ -60,13 +60,14 @@ export default function GraphPanel({ username, highlightIds = [] }) {
   const nodeMap = {}
   for (const n of graphData.nodes) nodeMap[n.id] = n
 
-  // ── Fetch graph data ──────────────────────────────────────────────────────
+  // ── Fetch graph data — on mount and whenever panel becomes visible ────────
   useEffect(() => {
-    if (!username) return
+    if (!username || !visible) return
     fetch(`/api/graph/data?username=${username}`)
       .then(r => r.json())
       .then(data => setGraphData(layoutNodes(data, username)))
-  }, [username])
+      .catch(() => {})
+  }, [username, visible])
 
   // ── Draw ──────────────────────────────────────────────────────────────────
   useEffect(() => {
