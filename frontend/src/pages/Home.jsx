@@ -1,13 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { ingestDeveloper } from '../utils/api.js'
 
 export default function Home() {
-  const [username, setUsername] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
+  const [githubLoading, setGithubLoading] = useState(false)
   const [oauthEnabled, setOauthEnabled] = useState(false)
-  const navigate = useNavigate()
 
   useEffect(() => {
     fetch('/api/auth/github/user')
@@ -15,25 +10,6 @@ export default function Home() {
       .then(d => setOauthEnabled(d.oauth_enabled))
       .catch(() => {})
   }, [])
-
-  async function handleSubmit(e) {
-    e.preventDefault()
-    const u = username.trim()
-    if (!u) return
-    setLoading(true)
-    setError('')
-    try {
-      const result = await ingestDeveloper(u)
-      if (result.error) setError(result.error)
-      else navigate(`/search/${u}`)
-    } catch {
-      setError('Could not connect to backend. Is it running?')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const [githubLoading, setGithubLoading] = useState(false)
 
   function handleGitHubLogin() {
     setGithubLoading(true)
@@ -83,90 +59,40 @@ export default function Home() {
           borderRadius: '16px', padding: '32px',
           boxShadow: '0 24px 64px rgba(0,0,0,0.4)',
         }}>
+          <p style={{ color: '#94a3b8', fontSize: '13px', textAlign: 'center', marginBottom: '24px', lineHeight: '1.6' }}>
+            Connect your GitHub account to discover open source issues tailored to your skills and connections.
+          </p>
 
-          {/* GitHub OAuth button — shown when configured */}
-          {oauthEnabled && (
-            <>
-              <button
-                onClick={handleGitHubLogin}
-                disabled={githubLoading}
-                style={{
-                  width: '100%', padding: '13px',
-                  background: githubLoading ? '#1a1f24' : '#24292f',
-                  border: '1px solid rgba(255,255,255,0.12)',
-                  borderRadius: '10px',
-                  color: '#fff', fontSize: '14px', fontWeight: '600',
-                  cursor: 'pointer', letterSpacing: '0.02em',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
-                  transition: 'background 0.2s',
-                  marginBottom: '20px',
-                }}
-                onMouseEnter={e => e.currentTarget.style.background = '#363d44'}
-                onMouseLeave={e => e.currentTarget.style.background = '#24292f'}
-              >
-                {githubLoading ? <LoadingSpinner /> : <GitHubIcon />}
-                {githubLoading ? 'Redirecting to GitHub…' : 'Continue with GitHub'}
-              </button>
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
-                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
-                <span style={{ color: '#374151', fontSize: '12px' }}>or enter username</span>
-                <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.07)' }} />
-              </div>
-            </>
-          )}
-
-          {/* Manual username form */}
-          <form onSubmit={handleSubmit}>
-            <label style={{ display: 'block', color: '#94a3b8', fontSize: '12px', fontWeight: '600', letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: '8px' }}>
-              GitHub Username
-            </label>
-            <div style={{ position: 'relative', marginBottom: '16px' }}>
-              <span style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#4b5563', fontSize: '15px' }}>@</span>
-              <input
-                style={{
-                  width: '100%', padding: '12px 14px 12px 30px',
-                  background: '#0d1117', border: '1px solid rgba(255,255,255,0.08)',
-                  borderRadius: '10px', color: '#e2e8f0', fontSize: '15px',
-                  outline: 'none', transition: 'border-color 0.2s',
-                  boxSizing: 'border-box',
-                }}
-                placeholder="PRABHU-OFFICIAL-II"
-                value={username}
-                onChange={e => setUsername(e.target.value)}
-                disabled={loading}
-                onFocus={e => e.target.style.borderColor = '#7c3aed'}
-                onBlur={e => e.target.style.borderColor = 'rgba(255,255,255,0.08)'}
-              />
-            </div>
-
+          {oauthEnabled ? (
             <button
-              type="submit"
-              disabled={loading || !username.trim()}
+              onClick={handleGitHubLogin}
+              disabled={githubLoading}
               style={{
-                width: '100%', padding: '13px',
-                background: loading ? '#1e1b4b' : 'linear-gradient(135deg, #7c3aed, #2563eb)',
-                border: 'none', borderRadius: '10px',
+                width: '100%', padding: '14px',
+                background: githubLoading ? '#1a1f24' : '#24292f',
+                border: '1px solid rgba(255,255,255,0.12)',
+                borderRadius: '10px',
                 color: '#fff', fontSize: '14px', fontWeight: '600',
-                cursor: loading ? 'not-allowed' : 'pointer',
+                cursor: githubLoading ? 'not-allowed' : 'pointer',
                 letterSpacing: '0.02em',
-                transition: 'opacity 0.2s, transform 0.1s',
-                opacity: !username.trim() ? 0.5 : 1,
+                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px',
+                transition: 'background 0.2s',
               }}
-              onMouseEnter={e => { if (!loading) e.target.style.opacity = '0.9' }}
-              onMouseLeave={e => { e.target.style.opacity = '1' }}
+              onMouseEnter={e => { if (!githubLoading) e.currentTarget.style.background = '#363d44' }}
+              onMouseLeave={e => { if (!githubLoading) e.currentTarget.style.background = '#24292f' }}
             >
-              {loading ? 'Building your graph…' : 'Explore Issues →'}
+              {githubLoading ? <LoadingSpinner /> : <GitHubIcon />}
+              {githubLoading ? 'Redirecting to GitHub…' : 'Continue with GitHub'}
             </button>
-
-            {error && (
-              <div style={{
-                marginTop: '12px', padding: '10px 14px',
-                background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)',
-                borderRadius: '8px', color: '#f87171', fontSize: '13px',
-              }}>{error}</div>
-            )}
-          </form>
+          ) : (
+            <div style={{
+              padding: '14px', borderRadius: '10px',
+              background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)',
+              color: '#f87171', fontSize: '13px', textAlign: 'center',
+            }}>
+              GitHub OAuth not configured. Set GITHUB_CLIENT_ID in backend .env
+            </div>
+          )}
         </div>
 
         {/* Feature pills */}
@@ -190,7 +116,7 @@ export default function Home() {
 
         <p style={{ textAlign: 'center', color: '#374151', fontSize: '11px', marginTop: '24px' }}>
           FalkorDB · FastAPI · Claude · MCP · React
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </p>
       </div>
     </div>
