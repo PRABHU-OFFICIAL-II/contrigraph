@@ -220,19 +220,32 @@ export default function GraphPanel({ username, highlightIds = [] }) {
             graphData={graphData}
             nodeCanvasObject={nodeCanvasObject}
             nodeCanvasObjectMode={() => 'replace'}
-            linkColor={linkColor}
-            linkWidth={linkWidth}
-            linkDirectionalArrowLength={3}
-            linkDirectionalArrowRelPos={1}
+            linkCanvasObject={(link, ctx) => {
+              const src = link.source
+              const tgt = link.target
+              if (src?.x == null || tgt?.x == null) return
+              const hl = highlightSet.has(
+                typeof link.source === 'object' ? link.source.id : link.source
+              ) && highlightSet.has(
+                typeof link.target === 'object' ? link.target.id : link.target
+              )
+              ctx.beginPath()
+              ctx.moveTo(src.x, src.y)
+              ctx.lineTo(tgt.x, tgt.y)
+              ctx.strokeStyle = hl ? 'rgba(255,215,0,0.9)' : 'rgba(255,255,255,0.45)'
+              ctx.lineWidth = hl ? 2.5 : 1.2
+              ctx.stroke()
+            }}
+            linkCanvasObjectMode={() => 'replace'}
             onNodeHover={node => setTooltip(node || null)}
             backgroundColor="#080d14"
             d3AlphaDecay={1}
             d3VelocityDecay={1}
-            cooldownTicks={1}
+            warmupTicks={20}
+            cooldownTicks={0}
             enableNodeDrag={false}
             onEngineStop={() => fgRef.current?.zoomToFit(400, 50)}
             nodePointerAreaPaint={(node, color, ctx) => {
-              // Large hit area = circle radius + generous padding so the dot is easy to hover
               const r = (NODE_R[node.type] ?? 4) + 18
               ctx.fillStyle = color
               ctx.beginPath()
