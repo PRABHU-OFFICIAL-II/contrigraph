@@ -236,12 +236,8 @@ def query_matching_issues(username: str, max_response_days: int = 7, complexity:
         WHERE i.state = 'open'
           AND m.avg_response_days <= $max_response_days
           {complexity_filter}
-          AND NOT EXISTS {{
-            MATCH (d)-[:SKIPPED]->(i)
-          }}
-          AND NOT EXISTS {{
-            MATCH (d)-[:APPLIED_TO]->(i)
-          }}
+          AND NOT (d)-[:SKIPPED]->(i)
+          AND NOT (d)-[:APPLIED_TO]->(i)
         OPTIONAL MATCH (friend:Developer)-[:FOLLOWS]-(d)-[:FOLLOWS]-(friend),
                        (friend)-[:CONTRIBUTED_TO]->(r)
         WITH i, r, m, count(DISTINCT friend) AS friend_contributors,
@@ -264,7 +260,7 @@ def get_repos_without_issues(username: str, limit: int = 5) -> list[str]:
     result = g.query(
         """
         MATCH (d:Developer {username: $username})-[:HAS_SKILL]->(s:Skill)<-[:REQUIRES_SKILL]-(r:Repository)
-        WHERE NOT EXISTS { MATCH (r)-[:HAS_ISSUE]->(:Issue) }
+        WHERE NOT (r)-[:HAS_ISSUE]->(:Issue)
         RETURN DISTINCT r.full_name AS full_name
         LIMIT $limit
         """,
@@ -278,9 +274,8 @@ def query_skill_gaps(username: str, repo_full_name: str) -> list:
     result = g.query(
         """
         MATCH (r:Repository {full_name: $repo})-[:REQUIRES_SKILL]->(s:Skill)
-        WHERE NOT EXISTS {
-          MATCH (d:Developer {username: $username})-[:HAS_SKILL]->(s)
-        }
+        MATCH (d:Developer {username: $username})
+        WHERE NOT (d)-[:HAS_SKILL]->(s)
         RETURN s.name AS missing_skill, s.category AS category
         ORDER BY s.category
         """,
@@ -311,7 +306,7 @@ def query_related_repos(username: str, limit: int = 10) -> list:
     result = g.query(
         """
         MATCH (d:Developer {username: $username})-[:HAS_SKILL]->(s:Skill)<-[:REQUIRES_SKILL]-(r:Repository)
-        WHERE NOT EXISTS { MATCH (d)-[:CONTRIBUTED_TO]->(r) }
+        WHERE NOT (d)-[:CONTRIBUTED_TO]->(r)
         WITH r, count(s) AS skill_matches
         MATCH (r)-[:TAGGED_WITH]->(t:Topic)<-[:TAGGED_WITH]-(related:Repository)
         WHERE related <> r
