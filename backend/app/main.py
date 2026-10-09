@@ -6,7 +6,7 @@ load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.routes import developer, search, session, chat, graph
+from app.routes import developer, search, session, chat, graph, auth
 
 app = FastAPI(title="ContriGraph API", version="0.1.0")
 
@@ -22,6 +22,7 @@ app.include_router(search.router, prefix="/api/search", tags=["search"])
 app.include_router(session.router, prefix="/api/session", tags=["session"])
 app.include_router(chat.router, prefix="/api/chat", tags=["chat"])
 app.include_router(graph.router, prefix="/api/graph", tags=["graph"])
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 
 
 @app.get("/health")
