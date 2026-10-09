@@ -103,20 +103,28 @@ export default function GraphPanel({ username, highlightIds = [] }) {
     if (!username) return
     fetch(`/api/graph/data?username=${username}`)
       .then(r => r.json())
-      .then(data => setGraphData(data))
+      .then(data => {
+        // Pre-position ALL nodes close to center so isolated nodes can't escape outward
+        const seeded = {
+          ...data,
+          nodes: data.nodes.map(n => ({
+            ...n,
+            x: (Math.random() - 0.5) * 60,
+            y: (Math.random() - 0.5) * 60,
+          })),
+        }
+        setGraphData(seeded)
+      })
   }, [username])
 
-  // Apply strong centering and charge forces after graph mounts
+  // Tune forces once data arrives
   useEffect(() => {
     const fg = fgRef.current
     if (!fg || !graphData.nodes.length) return
-    const sim = fg.d3Force
-    if (!sim) return
-    // Pull all nodes toward center
     try {
-      fg.d3Force('center')?.strength(1)
-      fg.d3Force('charge')?.strength(-120)
-      fg.d3Force('link')?.distance(30).strength(0.8)
+      fg.d3Force('charge')?.strength(-50)   // weaker repulsion
+      fg.d3Force('link')?.distance(22).strength(0.9)
+      fg.d3Force('center')?.strength(0.08)  // gentle pull to center
     } catch {}
   }, [graphData.nodes.length])
 
@@ -236,26 +244,20 @@ export default function GraphPanel({ username, highlightIds = [] }) {
           linkDirectionalArrowRelPos={1}
           onNodeHover={node => setTooltip(node || null)}
           backgroundColor="#0d1117"
-          d3AlphaDecay={0.04}
-          d3VelocityDecay={0.5}
-          warmupTicks={80}
-          cooldownTicks={60}
+          d3AlphaDecay={0.025}
+          d3VelocityDecay={0.4}
+          warmupTicks={100}
+          cooldownTicks={80}
           enableNodeDrag={false}
-          d3Force="charge"
-          d3ReheatSimulation
           onEngineStop={() => {
-            fgRef.current?.zoomToFit(500, 50)
-            // Freeze all nodes after settling
-            if (fgRef.current) {
-              const fg = fgRef.current
-              setTimeout(() => {
-                setGraphData(prev => ({
-                  ...prev,
-                  nodes: prev.nodes.map(n => ({ ...n, fx: n.x ?? 0, fy: n.y ?? 0 })),
-                }))
-                fg.zoomToFit(400, 50)
-              }, 100)
-            }
+            const fg = fgRef.current
+            if (!fg) return
+            // Freeze nodes in settled positions
+            setGraphData(prev => ({
+              ...prev,
+              nodes: prev.nodes.map(n => ({ ...n, fx: n.x ?? 0, fy: n.y ?? 0 })),
+            }))
+            fg.zoomToFit(600, 40)
           }}
           nodePointerAreaPaint={(node, color, ctx) => {
             // Generous hit area so all nodes are hoverable at any zoom level
