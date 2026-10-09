@@ -238,15 +238,17 @@ def link_issue_skill(issue_id: str, skill: str):
 
 # ── Core Cypher queries ────────────────────────────────────────────────────────
 
-def query_matching_issues(username: str, max_response_days: int = 30, complexity: str = None, limit: int = 10) -> list:
+def query_matching_issues(username: str, max_response_days: int = 30, complexity: str = None, skill: str = None, limit: int = 10) -> list:
     g = get_graph()
     complexity_filter = "AND i.complexity = $complexity" if complexity else ""
+    skill_filter = "AND s.name = $skill" if skill else ""
     result = g.query(
         f"""
         MATCH (d:Developer {{username: $username}})-[:HAS_SKILL]->(s:Skill)<-[:NEEDS_SKILL]-(i:Issue)<-[:HAS_ISSUE]-(r:Repository)-[:MAINTAINED_BY]->(m:Maintainer)
         WHERE i.state = 'open'
           AND m.avg_response_days <= $max_response_days
           {complexity_filter}
+          {skill_filter}
           AND NOT (d)-[:SKIPPED]->(i)
           AND NOT (d)-[:APPLIED_TO]->(i)
         OPTIONAL MATCH (friend:Developer)-[:FOLLOWS]-(d)-[:FOLLOWS]-(friend),
@@ -260,7 +262,7 @@ def query_matching_issues(username: str, max_response_days: int = 30, complexity
         ORDER BY friend_contributors DESC, m.avg_response_days ASC, r.stars DESC
         LIMIT $limit
         """,
-        {"username": username, "max_response_days": max_response_days, "complexity": complexity or "", "limit": limit},
+        {"username": username, "max_response_days": max_response_days, "complexity": complexity or "", "skill": skill or "", "limit": limit},
     )
     return [_row_to_dict(result.header, row) for row in result.result_set]
 
