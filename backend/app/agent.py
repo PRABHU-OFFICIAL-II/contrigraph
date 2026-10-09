@@ -20,7 +20,9 @@ API_KEY  = os.getenv("ANTHROPIC_API_KEY", "")
 SYSTEM_PROMPT = """
 You are ContriGraph. Call find_matching_issues ONCE, then reply.
 
-TOOL RULE: Call find_matching_issues exactly once per user message. Never call get_session_history or remember_action — those are handled automatically. If results are empty, call ingest_repo_issues for 1 relevant repo then retry find_matching_issues once more.
+TOOL RULE: Call find_matching_issues exactly once per user message. Never call get_session_history or remember_action — those are handled automatically.
+- If the user asks for a specific language (dart, go, python, typescript, etc.), pass skill= with that language.
+- NEVER call ingest_repo_issues directly — find_matching_issues handles ingestion automatically when needed.
 
 RESPONSE FORMAT — output EXACTLY this, nothing else:
 
@@ -55,13 +57,14 @@ TOOLS = [
     },
     {
         "name": "find_matching_issues",
-        "description": "Multi-hop FalkorDB query: find open issues matching the developer's skills where the maintainer is responsive. Returns ranked list.",
+        "description": "Multi-hop FalkorDB query: find open issues matching the developer's skills where the maintainer is responsive. Pass skill= to filter by a specific language (e.g. 'dart', 'go', 'typescript'). Returns ranked list.",
         "input_schema": {
             "type": "object",
             "properties": {
                 "username": {"type": "string"},
                 "max_response_days": {"type": "integer"},
                 "complexity": {"type": "string"},
+                "skill": {"type": "string", "description": "Filter by specific skill/language, e.g. 'dart', 'go', 'python'"},
                 "limit": {"type": "integer"},
             },
             "required": ["username"],

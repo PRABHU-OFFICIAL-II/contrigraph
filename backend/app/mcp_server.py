@@ -15,23 +15,35 @@ async def _dispatch(name: str, args: dict):
     if name == "find_matching_issues":
         username = args["username"]
         max_days = args.get("max_response_days", 30)
+        skill = (args.get("skill") or "").lower() or None
         issues = g.query_matching_issues(
             username=username,
             max_response_days=max_days,
             complexity=args.get("complexity"),
+            skill=skill,
             limit=args.get("limit", 10),
         )
-        print(f"[find_matching_issues] returned {len(issues)} issues for {username}")
+        print(f"[find_matching_issues] returned {len(issues)} issues for {username} skill={skill}")
 
-        # If empty, auto-ingest issues for repos matching the user's skills then retry
+        # If empty, auto-ingest issues for repos matching the skill/user's skills then retry
         if not issues:
             repos_to_ingest = g.get_repos_without_issues(username, limit=5)
-            # Fallback: if no external skill-matched repos exist yet, seed well-known Python repos
+            # Fallback: seed well-known repos for the requested skill (or Python by default)
             if not repos_to_ingest:
-                repos_to_ingest = [
-                    "psf/requests", "pallets/flask", "encode/httpx",
-                    "tiangolo/fastapi", "pypa/pip",
-                ]
+                SKILL_SEED_REPOS = {
+                    "dart":       ["dart-lang/sdk", "flutter/flutter"],
+                    "go":         ["golang/go", "gin-gonic/gin"],
+                    "typescript": ["microsoft/TypeScript", "denoland/deno"],
+                    "javascript": ["facebook/react", "vuejs/core"],
+                    "python":     ["psf/requests", "pallets/flask", "encode/httpx"],
+                    "java":       ["spring-projects/spring-framework", "apache/kafka"],
+                    "html":       ["whatwg/html", "mdn/content"],
+                    "rust":       ["rust-lang/rust", "tokio-rs/tokio"],
+                }
+                if skill and skill in SKILL_SEED_REPOS:
+                    repos_to_ingest = SKILL_SEED_REPOS[skill]
+                else:
+                    repos_to_ingest = ["psf/requests", "pallets/flask", "encode/httpx"]
             print(f"[find_matching_issues] no issues — auto-ingesting {repos_to_ingest}")
             for repo in repos_to_ingest:
                 try:
@@ -43,6 +55,7 @@ async def _dispatch(name: str, args: dict):
                 username=username,
                 max_response_days=max_days,
                 complexity=args.get("complexity"),
+                skill=skill,
                 limit=args.get("limit", 10),
             )
             print(f"[find_matching_issues] after auto-ingest: {len(issues)} issues")
