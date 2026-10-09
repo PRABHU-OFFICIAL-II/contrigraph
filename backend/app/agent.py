@@ -173,7 +173,7 @@ def _call_model_sync(messages: list, max_tokens: int = 4096) -> dict:
         "messages": messages,
         "tools": TOOLS,
     }
-    resp = httpx.post(url, json=body, headers=_request_headers(), timeout=120.0)
+    resp = httpx.post(url, json=body, headers=_request_headers(), timeout=120.0, verify=False)
     resp.raise_for_status()
     return resp.json()
 
