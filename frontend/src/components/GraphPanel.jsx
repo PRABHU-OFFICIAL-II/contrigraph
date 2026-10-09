@@ -103,12 +103,22 @@ export default function GraphPanel({ username, highlightIds = [] }) {
     if (!username) return
     fetch(`/api/graph/data?username=${username}`)
       .then(r => r.json())
-      .then(data => {
-        setGraphData(data)
-        // Let force settle, then zoom to fit with padding
-        setTimeout(() => fgRef.current?.zoomToFit(600, 60), 800)
-      })
+      .then(data => setGraphData(data))
   }, [username])
+
+  // Apply strong centering and charge forces after graph mounts
+  useEffect(() => {
+    const fg = fgRef.current
+    if (!fg || !graphData.nodes.length) return
+    const sim = fg.d3Force
+    if (!sim) return
+    // Pull all nodes toward center
+    try {
+      fg.d3Force('center')?.strength(1)
+      fg.d3Force('charge')?.strength(-120)
+      fg.d3Force('link')?.distance(30).strength(0.8)
+    } catch {}
+  }, [graphData.nodes.length])
 
   // Responsive sizing
   useEffect(() => {
@@ -226,17 +236,26 @@ export default function GraphPanel({ username, highlightIds = [] }) {
           linkDirectionalArrowRelPos={1}
           onNodeHover={node => setTooltip(node || null)}
           backgroundColor="#0d1117"
-          d3AlphaDecay={0.03}
-          d3VelocityDecay={0.3}
-          cooldownTicks={120}
+          d3AlphaDecay={0.04}
+          d3VelocityDecay={0.5}
+          warmupTicks={80}
+          cooldownTicks={60}
           enableNodeDrag={false}
+          d3Force="charge"
+          d3ReheatSimulation
           onEngineStop={() => {
-            // Freeze every node in place so physics never moves them again
-            setGraphData(prev => ({
-              ...prev,
-              nodes: prev.nodes.map(n => ({ ...n, fx: n.x, fy: n.y })),
-            }))
-            fgRef.current?.zoomToFit(400, 60)
+            fgRef.current?.zoomToFit(500, 50)
+            // Freeze all nodes after settling
+            if (fgRef.current) {
+              const fg = fgRef.current
+              setTimeout(() => {
+                setGraphData(prev => ({
+                  ...prev,
+                  nodes: prev.nodes.map(n => ({ ...n, fx: n.x ?? 0, fy: n.y ?? 0 })),
+                }))
+                fg.zoomToFit(400, 50)
+              }, 100)
+            }
           }}
           nodePointerAreaPaint={(node, color, ctx) => {
             // Generous hit area so all nodes are hoverable at any zoom level

@@ -200,7 +200,7 @@ export default function ChatPanel({ username, sessionId, onToolCall }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', background: '#0d1117', fontFamily: FONT }}>
       {/* Messages */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '28px 32px', display: 'flex', flexDirection: 'column', gap: '22px' }}>
+      <div style={{ flex: 1, overflowY: 'auto', padding: '20px 24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
         {messages.map((m, i) => (
           <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
 
@@ -217,8 +217,8 @@ export default function ChatPanel({ username, sessionId, onToolCall }) {
                 : 'rgba(22,30,45,0.9)',
               border: m.role === 'user' ? 'none' : '1px solid rgba(255,255,255,0.07)',
               color: '#e2e8f0',
-              fontSize: '14px',
-              lineHeight: '1.75',
+              fontSize: '13px',
+              lineHeight: '1.7',
               boxShadow: m.role === 'user'
                 ? '0 4px 20px rgba(124,58,237,0.25)'
                 : '0 2px 12px rgba(0,0,0,0.2)',
@@ -266,7 +266,7 @@ export default function ChatPanel({ username, sessionId, onToolCall }) {
 
       {/* Suggested queries */}
       {messages.length <= 2 && (
-        <div style={{ padding: '0 32px 16px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+        <div style={{ padding: '0 24px 12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {SUGGESTED.map((s, i) => (
             <button key={i} onClick={() => send(s.text)} style={{
               display: 'flex', alignItems: 'center', gap: '7px',
@@ -286,7 +286,7 @@ export default function ChatPanel({ username, sessionId, onToolCall }) {
 
       {/* Input */}
       <div style={{
-        padding: '16px 32px 18px',
+        padding: '14px 24px 16px',
         borderTop: '1px solid rgba(255,255,255,0.06)',
         background: 'rgba(10,15,26,0.9)',
       }}>
