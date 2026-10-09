@@ -142,15 +142,6 @@ TOOLS = [
             "required": ["username"],
         },
     },
-    {
-        "name": "ingest_repo_issues",
-        "description": "Fetch all open 'good first issue' issues for a repo from GitHub and store them in FalkorDB.",
-        "input_schema": {
-            "type": "object",
-            "properties": {"repo_full_name": {"type": "string"}},
-            "required": ["repo_full_name"],
-        },
-    },
 ]
 
 
