@@ -43,10 +43,30 @@ def get_repo_topics(owner: str, repo: str) -> list[str]:
     return resp.json().get("names", [])
 
 
-def get_repo_issues(owner: str, repo: str, label: str = "good first issue", per_page: int = 50) -> list:
+def get_repo_issues(owner: str, repo: str, label: str = None, per_page: int = 50) -> list:
+    """
+    Fetch open issues for a repo. Tries multiple beginner-friendly labels in order,
+    falling back to all open issues so we always return something.
+    """
+    if label is not None:
+        return _get(
+            f"/repos/{owner}/{repo}/issues",
+            {"labels": label, "state": "open", "per_page": per_page},
+        ) or []
+
+    # Try labels in priority order; return first non-empty batch
+    for try_label in ["good first issue", "good-first-issue", "help wanted", "beginner", "starter", "easy"]:
+        results = _get(
+            f"/repos/{owner}/{repo}/issues",
+            {"labels": try_label, "state": "open", "per_page": per_page},
+        ) or []
+        if results:
+            return results
+
+    # Fallback: return any open issues (no label filter)
     return _get(
         f"/repos/{owner}/{repo}/issues",
-        {"labels": label, "state": "open", "per_page": per_page},
+        {"state": "open", "per_page": per_page},
     ) or []
 
 
