@@ -39,12 +39,17 @@ function layoutNodes(data) {
       return { ...n, x: Math.cos(angle) * r, y: Math.sin(angle) * r, fx: Math.cos(angle) * r, fy: Math.sin(angle) * r }
     })
 
-  const devs       = (byType.Developer  || []).map((n, i) => ({ ...n, x: 0, y: 0, fx: 0, fy: 0 }))
-  const repos      = circle(byType.Repository  || [], 140)
-  const skills     = circle(byType.Skill       || [], 260)
-  const maintainers = circle(byType.Maintainer || [], 320)
-  const issues     = (byType.Issue   || []).map((n, i) => ({ ...n, x: (Math.random()-0.5)*80, y: (Math.random()-0.5)*80 }))
-  const topics     = (byType.Topic   || []).map((n, i) => ({ ...n, x: (Math.random()-0.5)*100, y: (Math.random()-0.5)*100 }))
+  const devs        = (byType.Developer  || []).map(n => ({ ...n, x: 0, y: 0, fx: 0, fy: 0 }))
+  const repos       = circle(byType.Repository  || [], 140)
+  const skills      = circle(byType.Skill       || [], 260)
+  const maintainers = circle(byType.Maintainer  || [], 330)
+  const pin = nodes => nodes.map((n, i) => {
+    const x = (Math.random() - 0.5) * 100
+    const y = (Math.random() - 0.5) * 100
+    return { ...n, x, y, fx: x, fy: y }
+  })
+  const issues  = pin(byType.Issue  || [])
+  const topics  = pin(byType.Topic  || [])
 
   return { ...data, nodes: [...devs, ...repos, ...skills, ...maintainers, ...issues, ...topics] }
 }
@@ -77,12 +82,8 @@ export default function GraphPanel({ username, highlightIds = [] }) {
   useEffect(() => {
     const fg = fgRef.current
     if (!fg || !graphData.nodes.length) return
-    try {
-      fg.d3Force('charge')?.strength(-60)
-      fg.d3Force('link')?.distance(10).strength(0.05)
-      fg.d3Force('center')?.strength(0)
-    } catch {}
-    setTimeout(() => fg.zoomToFit(600, 50), 500)
+    // All nodes are pinned (fx/fy set) — just zoom to fit
+    setTimeout(() => fg.zoomToFit(600, 50), 200)
   }, [graphData.nodes.length])
 
   // Responsive sizing
@@ -211,10 +212,10 @@ export default function GraphPanel({ username, highlightIds = [] }) {
             linkDirectionalArrowRelPos={1}
             onNodeHover={node => setTooltip(node || null)}
             backgroundColor="#080d14"
-            d3AlphaDecay={0.1}
-            d3VelocityDecay={0.9}
-            cooldownTime={1000}
-            enableNodeDrag={true}
+            d3AlphaDecay={1}
+            d3VelocityDecay={1}
+            cooldownTicks={0}
+            enableNodeDrag={false}
             onEngineStop={() => fgRef.current?.zoomToFit(400, 50)}
             nodePointerAreaPaint={(node, color, ctx) => {
               const r = (NODE_R[node.type] ?? 4) + 10
