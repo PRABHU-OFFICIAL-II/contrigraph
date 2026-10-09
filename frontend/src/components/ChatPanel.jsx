@@ -207,32 +207,30 @@ export default function ChatPanel({ username, sessionId, onToolCall }) {
             {/* Tool summary — collapsed by default */}
             {m.toolCalls?.length > 0 && <ToolSummary tools={m.toolCalls} />}
 
-            {/* Bubble */}
-            <div style={{
-              maxWidth: m.role === 'user' ? '70%' : '90%',
-              padding: '14px 18px',
-              borderRadius: m.role === 'user' ? '18px 18px 5px 18px' : '5px 18px 18px 18px',
-              background: m.role === 'user'
-                ? 'linear-gradient(135deg, #7c3aed, #2563eb)'
-                : 'rgba(22,30,45,0.9)',
-              border: m.role === 'user' ? 'none' : '1px solid rgba(255,255,255,0.07)',
-              color: '#e2e8f0',
-              fontSize: '13px',
-              lineHeight: '1.7',
-              boxShadow: m.role === 'user'
-                ? '0 4px 20px rgba(124,58,237,0.25)'
-                : '0 2px 12px rgba(0,0,0,0.2)',
-              letterSpacing: '0.01em',
-            }}>
-              {m.role === 'assistant'
-                ? <div style={{ minHeight: '1em' }}>
-                    <ReactMarkdown components={makeComponents(false)}>
-                      {m.content || (loading && i === messages.length - 1 ? '​' : '')}
-                    </ReactMarkdown>
-                  </div>
-                : <span>{m.content}</span>
-              }
-            </div>
+            {/* Bubble — skip when assistant content is still empty (typing indicator shown instead) */}
+            {(m.content || m.role === 'user') && (
+              <div style={{
+                maxWidth: m.role === 'user' ? '70%' : '90%',
+                padding: '14px 18px',
+                borderRadius: m.role === 'user' ? '18px 18px 5px 18px' : '5px 18px 18px 18px',
+                background: m.role === 'user'
+                  ? 'linear-gradient(135deg, #7c3aed, #2563eb)'
+                  : 'rgba(22,30,45,0.9)',
+                border: m.role === 'user' ? 'none' : '1px solid rgba(255,255,255,0.07)',
+                color: '#e2e8f0',
+                fontSize: '13px',
+                lineHeight: '1.7',
+                boxShadow: m.role === 'user'
+                  ? '0 4px 20px rgba(124,58,237,0.25)'
+                  : '0 2px 12px rgba(0,0,0,0.2)',
+                letterSpacing: '0.01em',
+              }}>
+                {m.role === 'assistant'
+                  ? <ReactMarkdown components={makeComponents(false)}>{m.content}</ReactMarkdown>
+                  : <span>{m.content}</span>
+                }
+              </div>
+            )}
           </div>
         ))}
 
