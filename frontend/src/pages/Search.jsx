@@ -33,7 +33,7 @@ export default function Search() {
       }}>
         {/* Brand */}
         <div style={{ padding: '16px 18px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <div style={{
               width: '32px', height: '32px', borderRadius: '9px', flexShrink: 0,
               background: 'linear-gradient(135deg, #7c3aed, #2563eb)',
@@ -44,24 +44,6 @@ export default function Search() {
               <div style={{ color: '#7c3aed', fontSize: '11px', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{username}</div>
             </div>
           </div>
-          {/* Logout */}
-          <button
-            onClick={() => {
-              try { localStorage.removeItem(`contrigraph-chat-${username}`) } catch {}
-              navigate('/')
-            }}
-            style={{
-              width: '100%', padding: '6px', borderRadius: '7px', fontSize: '11px',
-              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-              color: '#64748b', cursor: 'pointer', fontFamily: 'inherit',
-              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
-              transition: 'all 0.15s',
-            }}
-            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)'; e.currentTarget.style.color = '#f87171' }}
-            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#64748b' }}
-          >
-            ⏏ Log out
-          </button>
         </div>
 
         {/* Skills */}
@@ -104,6 +86,27 @@ export default function Search() {
             History
           </div>
           <SessionHistory username={username} refreshTick={historyTick} />
+        </div>
+
+        {/* Logout — pinned to bottom */}
+        <div style={{ padding: '12px 18px', borderTop: '1px solid rgba(255,255,255,0.05)', flexShrink: 0 }}>
+          <button
+            onClick={() => {
+              try { localStorage.removeItem(`contrigraph-chat-${username}`) } catch {}
+              navigate('/')
+            }}
+            style={{
+              width: '100%', padding: '8px', borderRadius: '7px', fontSize: '11px',
+              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+              color: '#64748b', cursor: 'pointer', fontFamily: 'inherit',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)'; e.currentTarget.style.color = '#f87171' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#64748b' }}
+          >
+            ⏏ Log out
+          </button>
         </div>
       </aside>
 
