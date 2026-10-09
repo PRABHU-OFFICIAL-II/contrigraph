@@ -45,6 +45,7 @@ def get_graph_data(username: str = Query(None)):
     # Fetch all edges
     edges_result = g.query("MATCH (a)-[r]->(b) RETURN id(a), id(b), type(r) LIMIT 500")
     links = []
+    connected_ids = set()
     for row in edges_result.result_set:
         src, tgt, rel_type = row
         if str(src) in node_ids and str(tgt) in node_ids:
@@ -53,8 +54,13 @@ def get_graph_data(username: str = Query(None)):
                 "target": str(tgt),
                 "type": rel_type,
             })
+            connected_ids.add(str(src))
+            connected_ids.add(str(tgt))
 
-    return {"nodes": nodes, "links": links}
+    # Only return nodes that participate in at least one edge
+    connected_nodes = [n for n in nodes if n["id"] in connected_ids]
+
+    return {"nodes": connected_nodes, "links": links}
 
 
 @router.get("/highlight")
