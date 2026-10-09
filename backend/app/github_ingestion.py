@@ -116,13 +116,27 @@ def ingest_developer(username: str) -> dict:
 
 def ingest_repo_issues(repo_full_name: str) -> dict:
     """
-    Fetch open 'good first issue' issues for a repo, classify them,
+    Fetch open issues for a repo, classify them,
     create Issue nodes, Maintainer node, and all relationships in FalkorDB.
     """
     owner, repo_name = repo_full_name.split("/", 1)
 
     print(f"[ingest] Fetching issues for {repo_full_name}...")
     issues = gh.get_repo_issues(owner, repo_name)
+
+    # Ensure the Repository node exists before linking issues/maintainer to it
+    repo_data_raw = gh.get_repo(repo_full_name) or {}
+
+    g.upsert_repository({
+        "full_name": repo_full_name,
+        "name": repo_name,
+        "description": (repo_data_raw or {}).get("description") or "",
+        "stars": (repo_data_raw or {}).get("stargazers_count", 0),
+        "forks": (repo_data_raw or {}).get("forks_count", 0),
+        "primary_language": (repo_data_raw or {}).get("language") or "",
+        "open_issues_count": (repo_data_raw or {}).get("open_issues_count", 0),
+        "last_commit_days_ago": gh.days_since((repo_data_raw or {}).get("pushed_at")),
+    })
 
     avg_response = gh.estimate_maintainer_response_days(owner, repo_name)
     user_data = gh.get_user(owner)
@@ -135,6 +149,12 @@ def ingest_repo_issues(repo_full_name: str) -> dict:
     }
     g.upsert_maintainer(maintainer_data)
     g.link_repo_maintainer(repo_full_name, owner)
+
+    # Link repo's primary language as a required skill
+    lang = (repo_data_raw.get("language") or "").lower()
+    if lang:
+        g.upsert_skill(lang, _skill_category(lang))
+        g.link_repo_skill(repo_full_name, lang)
 
     issues_ingested = 0
     for issue in issues:
@@ -158,16 +178,7 @@ def ingest_repo_issues(repo_full_name: str) -> dict:
         })
         g.link_repo_issue(repo_full_name, issue_id)
 
-        lang = repo_full_name.split("/")[0]
-        repo_node = g.get_graph().query(
-            "MATCH (r:Repository {full_name: $fn}) RETURN r.primary_language",
-            {"fn": repo_full_name},
-        )
-        if repo_node.result_set:
-            lang = (repo_node.result_set[0][0] or "").lower()
-
         if lang:
-            g.upsert_skill(lang, _skill_category(lang))
             g.link_issue_skill(issue_id, lang)
 
         issues_ingested += 1

@@ -24,6 +24,10 @@ def get_user(username: str) -> dict | None:
     return _get(f"/users/{username}")
 
 
+def get_repo(full_name: str) -> dict | None:
+    return _get(f"/repos/{full_name}")
+
+
 def get_user_repos(username: str) -> list:
     return _get(f"/users/{username}/repos", {"per_page": 100, "sort": "pushed"}) or []
 
