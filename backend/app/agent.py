@@ -156,7 +156,7 @@ def _request_headers() -> dict:
     }
 
 
-def _call_model_sync(messages: list, system: str, max_tokens: int = 4096) -> dict:
+def _call_model_sync(messages: list, system: str, max_tokens: int = 4096, force_tool: bool = False) -> dict:
     """
     Call the Salesforce Bedrock proxy directly.
     URL: {BASE_URL}/model/{MODEL}/invoke
@@ -170,6 +170,8 @@ def _call_model_sync(messages: list, system: str, max_tokens: int = 4096) -> dic
         "messages": messages,
         "tools": TOOLS,
     }
+    if force_tool:
+        body["tool_choice"] = {"type": "any"}
     resp = httpx.post(url, json=body, headers=_request_headers(), timeout=120.0, verify=False)
     resp.raise_for_status()
     return resp.json()
@@ -197,9 +199,12 @@ async def run_agent_stream(
     messages = list(history or [])
     messages.append({"role": "user", "content": message})
 
+    first_call = True
     while True:
         try:
-            response = await asyncio.to_thread(_call_model_sync, messages, system)
+            # Force at least one tool call on the first turn so the agent always queries FalkorDB
+            response = await asyncio.to_thread(_call_model_sync, messages, system, force_tool=first_call)
+            first_call = False
         except httpx.HTTPStatusError as exc:
             yield f"data: {json.dumps({'type': 'text', 'content': f'Error calling model: {exc.response.text}'})}\n\n"
             yield f"data: {json.dumps({'type': 'done'})}\n\n"
@@ -213,7 +218,7 @@ async def run_agent_stream(
         stop_reason = response.get("stop_reason", "end_turn")
         tool_use_blocks = [b for b in content if b.get("type") == "tool_use"]
 
-        if not tool_use_blocks or stop_reason == "end_turn":
+        if stop_reason == "end_turn" or not tool_use_blocks:
             for block in content:
                 if block.get("type") == "text":
                     text = block.get("text", "")

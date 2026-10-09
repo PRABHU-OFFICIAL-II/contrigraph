@@ -46,7 +46,10 @@ export default function Search() {
           </div>
           {/* Logout */}
           <button
-            onClick={() => navigate('/')}
+            onClick={() => {
+              try { localStorage.removeItem(`contrigraph-chat-${username}`) } catch {}
+              navigate('/')
+            }}
             style={{
               width: '100%', padding: '6px', borderRadius: '7px', fontSize: '11px',
               background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
