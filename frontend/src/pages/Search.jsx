@@ -134,14 +134,6 @@ export default function Search() {
             >
               <span>🕸</span> {showGraph ? 'Graph On' : 'Graph Off'}
             </button>
-            <button
-              onClick={() => navigate('/')}
-              style={{
-                padding: '6px 14px', borderRadius: '8px', fontSize: '12px',
-                background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
-                color: '#64748b', cursor: 'pointer', fontFamily: 'inherit',
-              }}
-            >← Back</button>
           </div>
         </div>
 
