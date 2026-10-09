@@ -48,12 +48,10 @@ export default function GraphPanel({ username, highlightIds = [] }) {
     const fg = fgRef.current
     if (!fg || !graphData.nodes.length) return
     try {
-      fg.d3Force('charge')?.strength(-120)
-      fg.d3Force('link')?.distance(55).strength(0.6)
-      fg.d3Force('center')?.strength(0.05)
+      fg.d3Force('charge')?.strength(-180)
+      fg.d3Force('link')?.distance(70).strength(0.5)
+      fg.d3Force('center')?.strength(0.06)
     } catch {}
-    // Zoom to fit after physics settles
-    setTimeout(() => fg.zoomToFit(800, 32), 2500)
   }, [graphData.nodes.length])
 
   // Responsive sizing
@@ -93,11 +91,13 @@ export default function GraphPanel({ username, highlightIds = [] }) {
       ctx.stroke()
     }
 
-    // Labels: always for Developer/highlighted; others at zoom ≥ 1.5
-    const showLabel = isDev || hl || globalScale >= 1.5
+    // Always show labels for Developer, Repository, Skill
+    // Show Issue/Maintainer/Topic only at higher zoom
+    const alwaysLabel = isDev || hl || node.type === 'Repository' || node.type === 'Skill'
+    const showLabel = alwaysLabel || globalScale >= 2
     if (!showLabel) return
 
-    const fontSize = Math.max(7, (isDev ? 11 : 9) / globalScale)
+    const fontSize = Math.max(7, (isDev ? 11 : node.type === 'Repository' ? 9 : 8) / globalScale)
     ctx.font = `${isDev ? '700 ' : ''}${fontSize}px Verdana, sans-serif`
 
     const tw = ctx.measureText(label).width
@@ -181,9 +181,10 @@ export default function GraphPanel({ username, highlightIds = [] }) {
             onNodeHover={node => setTooltip(node || null)}
             backgroundColor="#080d14"
             d3AlphaDecay={0.02}
-            d3VelocityDecay={0.3}
-            cooldownTime={3000}
+            d3VelocityDecay={0.35}
+            cooldownTime={4000}
             enableNodeDrag={true}
+            onEngineStop={() => fgRef.current?.zoomToFit(600, 40)}
             nodePointerAreaPaint={(node, color, ctx) => {
               const r = (NODE_R[node.type] ?? 4) + 10
               ctx.fillStyle = color
