@@ -2,6 +2,25 @@ import { useEffect, useRef, useState, useCallback } from 'react'
 
 const FONT = 'Verdana, Geneva, Tahoma, sans-serif'
 
+const LIGHT = {
+  bg: '#f9fafb', surface: '#ffffff', surface2: '#fafafa',
+  border: '#e5e7eb', border2: '#f3f4f6',
+  text: '#111827', textMuted: '#6b7280', textSubtle: '#9ca3af', textFaint: '#d1d5db',
+  canvasBg: '#ffffff',
+  edgeMaint: 'rgba(217,119,6,0.3)', edgeRepo: 'rgba(8,145,178,0.2)',
+  labelBg: 'rgba(255,255,255,0.92)',
+  labelDev: '#4c1d95', labelRepo: '#0e7490', labelMaint: '#92400e',
+}
+const DARK = {
+  bg: '#0f172a', surface: '#1e293b', surface2: '#162032',
+  border: '#334155', border2: '#243044',
+  text: '#e2e8f0', textMuted: '#94a3b8', textSubtle: '#64748b', textFaint: '#475569',
+  canvasBg: '#0f172a',
+  edgeMaint: 'rgba(217,119,6,0.22)', edgeRepo: 'rgba(8,145,178,0.18)',
+  labelBg: 'rgba(15,23,42,0.88)',
+  labelDev: '#c4b5fd', labelRepo: '#67e8f9', labelMaint: '#fcd34d',
+}
+
 const COMPLEXITY_COLOR = {
   beginner:     '#16a34a',
   starter:      '#16a34a',
@@ -21,18 +40,14 @@ function ring(count, radius, offset = -Math.PI / 2) {
   })
 }
 
-/* Convert /api/graph/exploration payload → {nodes, links} with concentric layout:
-   center=developer, ring1=repos, ring2=maintainers, ring3=issues */
 function buildGraph(data, username) {
   const nodes = []
   const links = []
   const repos = data.repos || []
 
-  // Center — developer node
   const devId = 'dev'
   nodes.push({ id: devId, kind: 'developer', label: username || 'You', x: 0, y: 0 })
 
-  // Ring 1 — repos (r=140)
   const repoPositions = ring(repos.length || 1, 140)
   repos.forEach((repo, ri) => {
     const repoId = `repo_${ri}`
@@ -47,7 +62,6 @@ function buildGraph(data, username) {
     links.push({ source: devId, target: repoId })
   })
 
-  // Ring 2 — maintainers (r=240), one per repo, placed near their repo's angle
   repos.forEach((repo, ri) => {
     if (!repo.maintainer) return
     const repoId = `repo_${ri}`
@@ -63,7 +77,6 @@ function buildGraph(data, username) {
     links.push({ source: repoId, target: mId })
   })
 
-  // Ring 3 — issues (r=340), spread around the circle across all repos
   const allIssues = repos.flatMap((repo, ri) =>
     (repo.issues || []).map(iss => ({ ...iss, repoId: `repo_${ri}`, repoIdx: ri, repoCount: repos.length }))
   )
@@ -93,7 +106,8 @@ function nodeRadius(node) {
   return NODE_R[node.kind] || 6
 }
 
-export default function ExplorationPanel({ username, refreshTick = 0 }) {
+export default function ExplorationPanel({ username, refreshTick = 0, darkMode }) {
+  const T = darkMode ? DARK : LIGHT
   const [graphData, setGraphData] = useState({ nodes: [], links: [] })
   const [fetching, setFetching] = useState(false)
   const [repoCount, setRepoCount] = useState(0)
@@ -131,7 +145,7 @@ export default function ExplorationPanel({ username, refreshTick = 0 }) {
     const { zoom, panX, panY } = stateRef.current
 
     ctx.clearRect(0, 0, canvas.width, canvas.height)
-    ctx.fillStyle = '#ffffff'
+    ctx.fillStyle = T.canvasBg
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
     ctx.save()
@@ -146,7 +160,7 @@ export default function ExplorationPanel({ username, refreshTick = 0 }) {
       ctx.beginPath()
       ctx.moveTo(src.x, src.y)
       ctx.lineTo(tgt.x, tgt.y)
-      ctx.strokeStyle = tgt.kind === 'maintainer' ? 'rgba(217,119,6,0.3)' : 'rgba(8,145,178,0.2)'
+      ctx.strokeStyle = tgt.kind === 'maintainer' ? T.edgeMaint : T.edgeRepo
       ctx.lineWidth = 1 / zoom
       ctx.stroke()
     }
@@ -185,9 +199,9 @@ export default function ExplorationPanel({ username, refreshTick = 0 }) {
         ctx.font = `${isCenter || node.kind === 'repo' ? '700 ' : ''}${fontSize}px Verdana, sans-serif`
         const tw = ctx.measureText(label).width
         const ly = node.y + r + 3 / zoom
-        ctx.fillStyle = 'rgba(255,255,255,0.92)'
+        ctx.fillStyle = T.labelBg
         ctx.fillRect(node.x - tw / 2 - 2 / zoom, ly, tw + 4 / zoom, fontSize + 3 / zoom)
-        ctx.fillStyle = isCenter ? '#4c1d95' : node.kind === 'repo' ? '#0e7490' : '#92400e'
+        ctx.fillStyle = isCenter ? T.labelDev : node.kind === 'repo' ? T.labelRepo : T.labelMaint
         ctx.textAlign = 'center'
         ctx.textBaseline = 'top'
         ctx.fillText(label, node.x, ly + 1 / zoom)
@@ -195,7 +209,7 @@ export default function ExplorationPanel({ username, refreshTick = 0 }) {
     }
 
     ctx.restore()
-  }, [graphData, drawTick, tooltip])
+  }, [graphData, drawTick, tooltip, darkMode])
 
   /* Resize observer */
   useEffect(() => {
@@ -275,30 +289,30 @@ export default function ExplorationPanel({ username, refreshTick = 0 }) {
   return (
     <div style={{
       flex: 1, minWidth: 0,
-      background: '#ffffff', borderLeft: '1px solid #e5e7eb',
+      background: T.surface, borderLeft: `1px solid ${T.border}`,
       display: 'flex', flexDirection: 'column', overflow: 'hidden',
       fontFamily: FONT,
     }}>
 
       {/* Header */}
       <div style={{
-        padding: '10px 16px', borderBottom: '1px solid rgba(0,0,0,0.08)',
+        padding: '10px 16px', borderBottom: `1px solid ${T.border}`,
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        flexShrink: 0, background: '#ffffff',
+        flexShrink: 0, background: T.surface,
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{
             width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0,
-            background: repoCount > 0 ? '#0891b2' : '#d1d5db',
+            background: repoCount > 0 ? '#0891b2' : T.border,
             animation: repoCount > 0 ? 'livePulse 1.6s ease-in-out infinite' : 'none',
           }} />
-          <span style={{ color: '#111827', fontSize: '12px', fontWeight: '700', fontFamily: FONT }}>
+          <span style={{ color: T.text, fontSize: '12px', fontWeight: '700', fontFamily: FONT }}>
             Live Exploration Graph
           </span>
           <span style={{
             fontSize: '10px', fontWeight: '700', fontFamily: FONT,
-            background: repoCount > 0 ? '#cffafe' : '#f3f4f6',
-            color: repoCount > 0 ? '#0e7490' : '#9ca3af',
+            background: repoCount > 0 ? '#cffafe' : T.surface2,
+            color: repoCount > 0 ? '#0e7490' : T.textSubtle,
             padding: '2px 8px', borderRadius: '20px',
           }}>{repoCount} repos explored</span>
         </div>
@@ -307,22 +321,22 @@ export default function ExplorationPanel({ username, refreshTick = 0 }) {
           title="Refresh"
           style={{
             background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px',
-            color: fetching ? '#0891b2' : '#94a3b8', fontSize: '14px', lineHeight: 1,
+            color: fetching ? '#0891b2' : T.textSubtle, fontSize: '14px', lineHeight: 1,
             animation: fetching ? 'spin 0.8s linear infinite' : 'none',
           }}
           onMouseEnter={e => { if (!fetching) e.currentTarget.style.color = '#0891b2' }}
-          onMouseLeave={e => { if (!fetching) e.currentTarget.style.color = '#94a3b8' }}
+          onMouseLeave={e => { if (!fetching) e.currentTarget.style.color = T.textSubtle }}
         >↻</button>
       </div>
 
       {/* Legend */}
       <div style={{
         display: 'flex', gap: '12px', flexWrap: 'wrap',
-        padding: '5px 14px', borderBottom: '1px solid rgba(0,0,0,0.06)',
-        flexShrink: 0, background: '#fafafa',
+        padding: '5px 14px', borderBottom: `1px solid ${T.border2}`,
+        flexShrink: 0, background: T.surface2,
       }}>
         {[['Repo (explored)', '#0891b2'], ['Maintainer', '#d97706'], ['Beginner issue', '#16a34a'], ['Intermediate', '#d97706'], ['Advanced', '#dc2626']].map(([label, color]) => (
-          <span key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#64748b', fontFamily: FONT }}>
+          <span key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: T.textMuted, fontFamily: FONT }}>
             <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, display: 'inline-block' }} />
             {label}
           </span>
@@ -336,7 +350,7 @@ export default function ExplorationPanel({ username, refreshTick = 0 }) {
           <div style={{
             position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
             alignItems: 'center', justifyContent: 'center',
-            color: '#cbd5e1', fontFamily: FONT, userSelect: 'none',
+            color: T.textSubtle, fontFamily: FONT, userSelect: 'none',
           }}>
             <svg width="80" height="80" viewBox="0 0 80 80" style={{ marginBottom: '12px', opacity: 0.3 }}>
               <circle cx="40" cy="40" r="12" fill="#0891b2" />
@@ -348,8 +362,8 @@ export default function ExplorationPanel({ username, refreshTick = 0 }) {
                 </g>
               })}
             </svg>
-            <div style={{ fontSize: '12px', fontWeight: '600', color: '#9ca3af', marginBottom: '4px' }}>No exploration yet</div>
-            <div style={{ fontSize: '11px', color: '#cbd5e1', textAlign: 'center', maxWidth: '200px', lineHeight: '1.5' }}>
+            <div style={{ fontSize: '12px', fontWeight: '600', color: T.textMuted, marginBottom: '4px' }}>No exploration yet</div>
+            <div style={{ fontSize: '11px', color: T.textFaint, textAlign: 'center', maxWidth: '200px', lineHeight: '1.5' }}>
               Ask the agent for issues — this graph updates live
             </div>
           </div>
@@ -369,9 +383,9 @@ export default function ExplorationPanel({ username, refreshTick = 0 }) {
         {tooltip && (
           <div style={{
             position: 'absolute', top: 10, right: 10, maxWidth: '220px',
-            background: '#ffffff', border: '1px solid rgba(0,0,0,0.1)',
+            background: T.surface, border: `1px solid ${T.border}`,
             borderRadius: '10px', padding: '10px 12px',
-            fontSize: '12px', color: '#1e293b', pointerEvents: 'none',
+            fontSize: '12px', color: T.text, pointerEvents: 'none',
             zIndex: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
             fontFamily: FONT,
           }}>
@@ -386,7 +400,7 @@ export default function ExplorationPanel({ username, refreshTick = 0 }) {
               {tooltip.kind === 'developer' ? `@${tooltip.label}` : tooltip.kind === 'repo' ? tooltip.full_name : tooltip.label}
             </div>
             {tooltip.kind === 'repo' && (
-              <div style={{ color: '#64748b', fontSize: '11px' }}>
+              <div style={{ color: T.textMuted, fontSize: '11px' }}>
                 ⭐ {tooltip.stars || 0} · ⚡ {tooltip.response_days <= 1 ? '<1 day' : `${Math.round(tooltip.response_days)}d`} response
               </div>
             )}
@@ -394,12 +408,12 @@ export default function ExplorationPanel({ username, refreshTick = 0 }) {
               <div style={{ color: '#0891b2', fontSize: '10px', marginTop: '3px' }}>Click to open on GitHub ↗</div>
             )}
             {tooltip.kind === 'maintainer' && (
-              <div style={{ color: '#64748b', fontSize: '11px' }}>avg response: {tooltip.response_days <= 1 ? '<1 day' : `${Math.round(tooltip.response_days)} days`}</div>
+              <div style={{ color: T.textMuted, fontSize: '11px' }}>avg response: {tooltip.response_days <= 1 ? '<1 day' : `${Math.round(tooltip.response_days)} days`}</div>
             )}
           </div>
         )}
 
-        <div style={{ position: 'absolute', bottom: 8, left: 12, color: '#e2e8f0', fontSize: '10px', pointerEvents: 'none', fontFamily: FONT }}>
+        <div style={{ position: 'absolute', bottom: 8, left: 12, color: T.border, fontSize: '10px', pointerEvents: 'none', fontFamily: FONT }}>
           Scroll to zoom · Drag to pan · Hover for details
         </div>
       </div>
