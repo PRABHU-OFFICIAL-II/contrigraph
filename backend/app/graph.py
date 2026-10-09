@@ -227,7 +227,7 @@ def link_issue_skill(issue_id: str, skill: str):
 
 # ── Core Cypher queries ────────────────────────────────────────────────────────
 
-def query_matching_issues(username: str, max_response_days: int = 7, complexity: str = None, limit: int = 10) -> list:
+def query_matching_issues(username: str, max_response_days: int = 30, complexity: str = None, limit: int = 10) -> list:
     g = get_graph()
     complexity_filter = "AND i.complexity = $complexity" if complexity else ""
     result = g.query(
@@ -254,10 +254,21 @@ def query_matching_issues(username: str, max_response_days: int = 7, complexity:
     return [dict(zip(result.header, row)) for row in result.result_set]
 
 
-def get_repos_without_issues(username: str, limit: int = 5) -> list[str]:
-    """Return full_names of repos that match the user's skills but have no issues ingested yet."""
+def get_repos_without_issues(username: str, limit: int = 10) -> list[str]:
+    """Return full_names of repos relevant to the user that have no issues ingested yet."""
     g = get_graph()
-    result = g.query(
+    # Repos where developer contributed directly
+    r1 = g.query(
+        """
+        MATCH (d:Developer {username: $username})-[:CONTRIBUTED_TO]->(r:Repository)
+        WHERE NOT (r)-[:HAS_ISSUE]->(:Issue)
+        RETURN DISTINCT r.full_name AS full_name
+        LIMIT $limit
+        """,
+        {"username": username, "limit": limit},
+    )
+    # Repos matching user's skills
+    r2 = g.query(
         """
         MATCH (d:Developer {username: $username})-[:HAS_SKILL]->(s:Skill)<-[:REQUIRES_SKILL]-(r:Repository)
         WHERE NOT (r)-[:HAS_ISSUE]->(:Issue)
@@ -266,7 +277,16 @@ def get_repos_without_issues(username: str, limit: int = 5) -> list[str]:
         """,
         {"username": username, "limit": limit},
     )
-    return [row[0] for row in result.result_set if row[0]]
+    seen = set()
+    results = []
+    for row in r1.result_set + r2.result_set:
+        fn = row[0]
+        if fn and fn not in seen:
+            seen.add(fn)
+            results.append(fn)
+        if len(results) >= limit:
+            break
+    return results
 
 
 def query_skill_gaps(username: str, repo_full_name: str) -> list:
