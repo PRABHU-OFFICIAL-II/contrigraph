@@ -60,7 +60,7 @@ async def github_callback(code: str):
     # Ingest developer into FalkorDB (uses the PAT from env, not OAuth token)
     await asyncio.to_thread(ingest_developer, username)
 
-    return RedirectResponse(f"{FRONTEND_URL}/search/{username}?auth=1")
+    return RedirectResponse(f"{FRONTEND_URL}/loading?username={username}")
 
 
 @router.get("/github/user")

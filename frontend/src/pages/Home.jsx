@@ -33,7 +33,10 @@ export default function Home() {
     }
   }
 
+  const [githubLoading, setGithubLoading] = useState(false)
+
   function handleGitHubLogin() {
+    setGithubLoading(true)
     window.location.href = '/api/auth/github/login'
   }
 
@@ -86,9 +89,10 @@ export default function Home() {
             <>
               <button
                 onClick={handleGitHubLogin}
+                disabled={githubLoading}
                 style={{
                   width: '100%', padding: '13px',
-                  background: '#24292f',
+                  background: githubLoading ? '#1a1f24' : '#24292f',
                   border: '1px solid rgba(255,255,255,0.12)',
                   borderRadius: '10px',
                   color: '#fff', fontSize: '14px', fontWeight: '600',
@@ -100,8 +104,8 @@ export default function Home() {
                 onMouseEnter={e => e.currentTarget.style.background = '#363d44'}
                 onMouseLeave={e => e.currentTarget.style.background = '#24292f'}
               >
-                <GitHubIcon />
-                Continue with GitHub
+                {githubLoading ? <LoadingSpinner /> : <GitHubIcon />}
+                {githubLoading ? 'Redirecting to GitHub…' : 'Continue with GitHub'}
               </button>
 
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '20px' }}>
@@ -186,9 +190,22 @@ export default function Home() {
 
         <p style={{ textAlign: 'center', color: '#374151', fontSize: '11px', marginTop: '24px' }}>
           FalkorDB · FastAPI · Claude · MCP · React
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </p>
       </div>
     </div>
+  )
+}
+
+function LoadingSpinner() {
+  return (
+    <span style={{
+      display: 'inline-block', width: '16px', height: '16px',
+      border: '2px solid rgba(255,255,255,0.2)',
+      borderTopColor: '#fff', borderRadius: '50%',
+      animation: 'spin 0.7s linear infinite',
+      flexShrink: 0,
+    }} />
   )
 }
 
