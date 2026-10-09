@@ -12,20 +12,32 @@ class IngestRequest(BaseModel):
 
 @router.post("/ingest")
 def ingest_developer(req: IngestRequest):
-    result = ingestion.ingest_developer(req.github_username)
-    if "error" in result:
-        raise HTTPException(status_code=404, detail=result["error"])
-    return result
+    try:
+        result = ingestion.ingest_developer(req.github_username)
+        if "error" in result:
+            raise HTTPException(status_code=404, detail=result["error"])
+        return result
+    except HTTPException:
+        raise
+    except Exception as exc:
+        print(f"[developer] ingest error: {exc}")
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router.get("/{username}")
 def get_developer(username: str):
-    graph = g.get_graph()
-    result = graph.query(
-        "MATCH (d:Developer {username: $username}) RETURN d",
-        {"username": username},
-    )
-    if not result.result_set:
-        raise HTTPException(status_code=404, detail="Developer not found in graph")
-    node = result.result_set[0][0]
-    return {"username": username, "properties": node.properties}
+    try:
+        graph = g.get_graph()
+        result = graph.query(
+            "MATCH (d:Developer {username: $username}) RETURN d",
+            {"username": username},
+        )
+        if not result.result_set:
+            raise HTTPException(status_code=404, detail="Developer not found in graph")
+        node = result.result_set[0][0]
+        return {"username": username, "properties": node.properties}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        print(f"[developer] get_developer error: {exc}")
+        raise HTTPException(status_code=500, detail=str(exc))
