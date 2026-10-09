@@ -1,258 +1,392 @@
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 
 const FONT = 'Verdana, Geneva, Tahoma, sans-serif'
 
 const COMPLEXITY_COLOR = {
-  beginner: '#16a34a',
-  starter: '#16a34a',
+  beginner:     '#16a34a',
+  starter:      '#16a34a',
   intermediate: '#d97706',
-  advanced: '#dc2626',
+  advanced:     '#dc2626',
 }
-
 function complexityColor(c) {
   return COMPLEXITY_COLOR[(c || '').toLowerCase()] || '#6b7280'
 }
 
-function responseLabel(days) {
-  if (!days && days !== 0) return '—'
-  if (days <= 1) return '⚡ <1 day'
-  if (days <= 7) return `${Math.round(days)}d`
-  return `${Math.round(days)}d`
-}
+const NODE_R = { repo: 12, issue: 6, maintainer: 8 }
 
-/* ── Mini SVG graph for one repo node ── */
-function RepoGraph({ repo, index }) {
-  const issues = repo.issues || []
-  const cx = 60, cy = 60
-  const r = 46
-  const spokes = issues.map((iss, i) => {
-    const angle = issues.length === 1
-      ? -Math.PI / 2
-      : (i / issues.length) * 2 * Math.PI - Math.PI / 2
-    return {
-      x: cx + Math.cos(angle) * r,
-      y: cy + Math.sin(angle) * r,
-      ...iss,
+/* Convert /api/graph/exploration payload → {nodes, links} for canvas */
+function buildGraph(data) {
+  const nodes = []
+  const links = []
+  const repos = data.repos || []
+
+  repos.forEach((repo, ri) => {
+    const repoId = `repo_${ri}`
+    nodes.push({ id: repoId, kind: 'repo', label: repo.full_name?.split('/')[1] || repo.full_name, full_name: repo.full_name, stars: repo.stars, response_days: repo.avg_response_days, x: 0, y: 0 })
+
+    if (repo.maintainer) {
+      const mId = `m_${ri}`
+      nodes.push({ id: mId, kind: 'maintainer', label: repo.maintainer, response_days: repo.avg_response_days, x: 0, y: 0 })
+      links.push({ source: repoId, target: mId })
     }
+
+    ;(repo.issues || []).forEach((iss, ii) => {
+      const issId = `iss_${ri}_${ii}`
+      nodes.push({ id: issId, kind: 'issue', label: iss.title, url: iss.url, complexity: iss.complexity, x: 0, y: 0 })
+      links.push({ source: repoId, target: issId })
+    })
   })
 
-  return (
-    <svg width="120" height="120" viewBox="0 0 120 120">
-      {spokes.map((s, i) => (
-        <line key={i} x1={cx} y1={cy} x2={s.x} y2={s.y}
-          stroke="rgba(8,145,178,0.25)" strokeWidth="1.2" />
-      ))}
-      {spokes.map((s, i) => (
-        <circle key={i} cx={s.x} cy={s.y} r="5"
-          fill={complexityColor(s.complexity)} opacity="0.9"
-          style={{ animation: `nodeFloat 2.5s ease-in-out ${i * 0.2}s infinite` }} />
-      ))}
-      {/* repo hub */}
-      <circle cx={cx} cy={cy} r="13" fill="#0891b2" />
-      <circle cx={cx} cy={cy} r="13" fill="none" stroke="white" strokeWidth="1.5" opacity="0.5" />
-    </svg>
-  )
+  /* Layout: repos in a ring, their children fanning out */
+  const repoNodes = nodes.filter(n => n.kind === 'repo')
+  const repoRing = 130
+
+  repoNodes.forEach((rn, ri) => {
+    const angle = repoNodes.length === 1
+      ? -Math.PI / 2
+      : (ri / repoNodes.length) * 2 * Math.PI - Math.PI / 2
+    rn.x = Math.cos(angle) * repoRing
+    rn.y = Math.sin(angle) * repoRing
+
+    const children = links.filter(l => l.source === rn.id).map(l => nodes.find(n => n.id === l.target))
+    const childRing = 80
+    children.forEach((cn, ci) => {
+      if (!cn) return
+      const spread = children.length === 1 ? 0 : ((ci / children.length) - 0.5) * Math.PI * 0.9
+      const childAngle = angle + spread
+      cn.x = rn.x + Math.cos(childAngle) * childRing
+      cn.y = rn.y + Math.sin(childAngle) * childRing
+    })
+  })
+
+  return { nodes, links }
+}
+
+function nodeColor(node) {
+  if (node.kind === 'repo') return '#0891b2'
+  if (node.kind === 'maintainer') return '#d97706'
+  return complexityColor(node.complexity)
+}
+
+function nodeRadius(node) {
+  return NODE_R[node.kind] || 6
 }
 
 export default function ExplorationPanel({ username, refreshTick = 0 }) {
-  const [data, setData] = useState({ repos: [] })
-  const [loading, setLoading] = useState(false)
-  const prevCount = useRef(0)
+  const [graphData, setGraphData] = useState({ nodes: [], links: [] })
+  const [fetching, setFetching] = useState(false)
+  const [repoCount, setRepoCount] = useState(0)
+  const containerRef = useRef(null)
+  const canvasRef = useRef(null)
+  const stateRef = useRef({ zoom: 1, panX: 0, panY: 0, dragging: false, lastX: 0, lastY: 0 })
+  const [tooltip, setTooltip] = useState(null)
+  const [drawTick, setDrawTick] = useState(0)
+  const nodeMap = useRef({})
 
-  useEffect(() => {
+  function fetchData() {
     if (!username) return
-    setLoading(true)
+    setFetching(true)
     fetch(`/api/graph/exploration?username=${username}`)
       .then(r => r.json())
       .then(d => {
-        setData(d)
-        prevCount.current = d.repos?.length || 0
-        setLoading(false)
+        const gd = buildGraph(d)
+        setGraphData(gd)
+        setRepoCount(d.repos?.length || 0)
+        nodeMap.current = {}
+        gd.nodes.forEach(n => { nodeMap.current[n.id] = n })
+        setFetching(false)
       })
-      .catch(() => setLoading(false))
-  }, [username, refreshTick])
+      .catch(() => setFetching(false))
+  }
 
-  const repos = data.repos || []
+  useEffect(() => { fetchData() }, [username, refreshTick])
+
+  /* Draw */
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas || !graphData.nodes.length) return
+    if (!canvas.width || !canvas.height) return
+    const ctx = canvas.getContext('2d')
+    const { zoom, panX, panY } = stateRef.current
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height)
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+
+    ctx.save()
+    ctx.translate(canvas.width / 2 + panX, canvas.height / 2 + panY)
+    ctx.scale(zoom, zoom)
+
+    /* Edges */
+    for (const link of graphData.links) {
+      const src = nodeMap.current[link.source]
+      const tgt = nodeMap.current[link.target]
+      if (!src || !tgt) continue
+      ctx.beginPath()
+      ctx.moveTo(src.x, src.y)
+      ctx.lineTo(tgt.x, tgt.y)
+      ctx.strokeStyle = tgt.kind === 'maintainer' ? 'rgba(217,119,6,0.3)' : 'rgba(8,145,178,0.2)'
+      ctx.lineWidth = 1 / zoom
+      ctx.stroke()
+    }
+
+    /* Nodes */
+    for (const node of graphData.nodes) {
+      const r = nodeRadius(node)
+      const col = nodeColor(node)
+
+      if (node.kind === 'repo') {
+        ctx.shadowColor = col + '60'
+        ctx.shadowBlur = 14 / zoom
+      }
+
+      ctx.beginPath()
+      ctx.arc(node.x, node.y, r, 0, 2 * Math.PI)
+      ctx.fillStyle = col
+      ctx.globalAlpha = 0.9
+      ctx.fill()
+      ctx.globalAlpha = 1
+      ctx.shadowBlur = 0
+
+      if (node.kind === 'repo') {
+        ctx.strokeStyle = '#ffffff'
+        ctx.lineWidth = 2 / zoom
+        ctx.stroke()
+      }
+
+      /* Labels for repo nodes and maintainers */
+      if (node.kind === 'repo' || node.kind === 'maintainer') {
+        const label = node.label?.length > 16 ? node.label.slice(0, 15) + '…' : node.label || ''
+        const fontSize = Math.max(7, (node.kind === 'repo' ? 10 : 8) / zoom)
+        ctx.font = `${node.kind === 'repo' ? '700 ' : ''}${fontSize}px Verdana, sans-serif`
+        const tw = ctx.measureText(label).width
+        const lx = node.x
+        const ly = node.y + r + 3 / zoom
+        ctx.fillStyle = 'rgba(255,255,255,0.92)'
+        ctx.fillRect(lx - tw / 2 - 2 / zoom, ly, tw + 4 / zoom, fontSize + 3 / zoom)
+        ctx.fillStyle = node.kind === 'repo' ? '#0e7490' : '#92400e'
+        ctx.textAlign = 'center'
+        ctx.textBaseline = 'top'
+        ctx.fillText(label, lx, ly + 1 / zoom)
+      }
+    }
+
+    ctx.restore()
+  }, [graphData, drawTick, tooltip])
+
+  /* Resize observer */
+  useEffect(() => {
+    const container = containerRef.current
+    const canvas = canvasRef.current
+    if (!container || !canvas) return
+
+    function fit() {
+      if (!graphData.nodes.length || !canvas.width || !canvas.height) return
+      const xs = graphData.nodes.map(n => n.x)
+      const ys = graphData.nodes.map(n => n.y)
+      const minX = Math.min(...xs) - 60, maxX = Math.max(...xs) + 60
+      const minY = Math.min(...ys) - 60, maxY = Math.max(...ys) + 60
+      const z = Math.min(canvas.width / (maxX - minX), canvas.height / (maxY - minY)) * 0.82
+      stateRef.current = { ...stateRef.current, zoom: z, panX: -((minX + maxX) / 2) * z, panY: -((minY + maxY) / 2) * z }
+      setDrawTick(c => c + 1)
+    }
+
+    function resize() {
+      canvas.width = container.clientWidth
+      canvas.height = container.clientHeight
+      fit()
+    }
+
+    const obs = new ResizeObserver(resize)
+    obs.observe(container)
+    resize()
+    const t = setTimeout(resize, 400)
+    return () => { obs.disconnect(); clearTimeout(t) }
+  }, [graphData])
+
+  function redraw() { setDrawTick(c => c + 1) }
+
+  function worldPos(e) {
+    const canvas = canvasRef.current
+    const rect = canvas.getBoundingClientRect()
+    const { zoom, panX, panY } = stateRef.current
+    return {
+      x: (e.clientX - rect.left - canvas.width / 2 - panX) / zoom,
+      y: (e.clientY - rect.top - canvas.height / 2 - panY) / zoom,
+    }
+  }
+
+  function hitNode(wx, wy) {
+    for (const node of [...graphData.nodes].reverse()) {
+      const r = nodeRadius(node) + 4
+      const dx = wx - node.x, dy = wy - node.y
+      if (dx * dx + dy * dy <= r * r) return node
+    }
+    return null
+  }
+
+  function onMouseMove(e) {
+    const s = stateRef.current
+    if (s.dragging) {
+      s.panX += e.clientX - s.lastX; s.panY += e.clientY - s.lastY
+      s.lastX = e.clientX; s.lastY = e.clientY
+      redraw()
+    } else {
+      const { x, y } = worldPos(e)
+      setTooltip(hitNode(x, y) || null)
+    }
+  }
+  function onMouseDown(e) { stateRef.current.dragging = true; stateRef.current.lastX = e.clientX; stateRef.current.lastY = e.clientY }
+  function onMouseUp() { stateRef.current.dragging = false }
+  function onWheel(e) {
+    e.preventDefault()
+    const s = stateRef.current
+    const f = e.deltaY < 0 ? 1.1 : 0.91
+    const nz = Math.max(0.2, Math.min(8, s.zoom * f))
+    s.panX = s.panX * (nz / s.zoom); s.panY = s.panY * (nz / s.zoom); s.zoom = nz
+    redraw()
+  }
+
+  const isEmpty = graphData.nodes.length === 0
 
   return (
     <div style={{
-      width: '260px', minWidth: '260px',
+      flex: 1, minWidth: 0,
       background: '#ffffff', borderLeft: '1px solid #e5e7eb',
       display: 'flex', flexDirection: 'column', overflow: 'hidden',
       fontFamily: FONT,
     }}>
+
       {/* Header */}
       <div style={{
-        padding: '14px 16px', borderBottom: '1px solid #e5e7eb',
+        padding: '10px 16px', borderBottom: '1px solid rgba(0,0,0,0.08)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        flexShrink: 0,
+        flexShrink: 0, background: '#ffffff',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '7px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{
-            width: '8px', height: '8px', borderRadius: '50%',
-            background: repos.length > 0 ? '#0891b2' : '#d1d5db',
-            display: 'inline-block',
-            animation: repos.length > 0 ? 'livePulse 1.6s ease-in-out infinite' : 'none',
+            width: '8px', height: '8px', borderRadius: '50%', flexShrink: 0,
+            background: repoCount > 0 ? '#0891b2' : '#d1d5db',
+            animation: repoCount > 0 ? 'livePulse 1.6s ease-in-out infinite' : 'none',
           }} />
-          <span style={{ fontSize: '12px', fontWeight: '800', color: '#111827', fontFamily: FONT }}>
-            Live Exploration
+          <span style={{ color: '#111827', fontSize: '12px', fontWeight: '700', fontFamily: FONT }}>
+            Live Exploration Graph
           </span>
+          <span style={{
+            fontSize: '10px', fontWeight: '700', fontFamily: FONT,
+            background: repoCount > 0 ? '#cffafe' : '#f3f4f6',
+            color: repoCount > 0 ? '#0e7490' : '#9ca3af',
+            padding: '2px 8px', borderRadius: '20px',
+          }}>{repoCount} repos explored</span>
         </div>
-        <span style={{
-          fontSize: '10px', fontWeight: '700', fontFamily: FONT,
-          background: repos.length > 0 ? '#cffafe' : '#f3f4f6',
-          color: repos.length > 0 ? '#0e7490' : '#9ca3af',
-          padding: '2px 8px', borderRadius: '20px',
-        }}>
-          {repos.length} repos
-        </span>
+        <button
+          onClick={fetchData}
+          title="Refresh"
+          style={{
+            background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px',
+            color: fetching ? '#0891b2' : '#94a3b8', fontSize: '14px', lineHeight: 1,
+            animation: fetching ? 'spin 0.8s linear infinite' : 'none',
+          }}
+          onMouseEnter={e => { if (!fetching) e.currentTarget.style.color = '#0891b2' }}
+          onMouseLeave={e => { if (!fetching) e.currentTarget.style.color = '#94a3b8' }}
+        >↻</button>
       </div>
 
-      {/* Empty state */}
-      {repos.length === 0 && !loading && (
-        <div style={{
-          flex: 1, display: 'flex', flexDirection: 'column',
-          alignItems: 'center', justifyContent: 'center',
-          padding: '24px', textAlign: 'center',
-          animation: 'fadeIn 0.3s ease both',
-        }}>
-          <svg width="56" height="56" viewBox="0 0 56 56" style={{ marginBottom: '12px', opacity: 0.35 }}>
-            <circle cx="28" cy="28" r="10" fill="#0891b2" />
-            {[0,1,2,3,4].map(i => {
-              const a = (i/5)*2*Math.PI - Math.PI/2
-              return <g key={i}>
-                <line x1="28" y1="28" x2={28+Math.cos(a)*20} y2={28+Math.sin(a)*20}
-                  stroke="#0891b2" strokeWidth="1.5" />
-                <circle cx={28+Math.cos(a)*20} cy={28+Math.sin(a)*20} r="4" fill="#16a34a" />
-              </g>
-            })}
-          </svg>
-          <div style={{ fontSize: '12px', fontWeight: '600', color: '#374151', marginBottom: '4px', fontFamily: FONT }}>
-            No exploration yet
-          </div>
-          <div style={{ fontSize: '11px', color: '#9ca3af', lineHeight: '1.5', fontFamily: FONT }}>
-            Ask the agent for issues and this graph will update live
-          </div>
-        </div>
-      )}
-
-      {loading && repos.length === 0 && (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-          <div style={{
-            width: '18px', height: '18px', border: '2px solid #e5e7eb',
-            borderTopColor: '#0891b2', borderRadius: '50%',
-            animation: 'spin 0.7s linear infinite',
-          }} />
-        </div>
-      )}
-
-      {/* Repo cards */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
-        {repos.map((repo, idx) => (
-          <div key={repo.full_name} style={{
-            borderRadius: '10px', border: '1px solid #e5e7eb',
-            overflow: 'hidden', background: '#fafafa',
-            opacity: 0,
-            animation: `fadeInUp 0.35s ease ${idx * 0.06}s both`,
-          }}>
-            {/* Repo header */}
-            <div style={{
-              padding: '8px 10px',
-              background: 'linear-gradient(135deg, #ecfeff 0%, #f0fdff 100%)',
-              borderBottom: '1px solid #e5e7eb',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            }}>
-              <a href={`https://github.com/${repo.full_name}`} target="_blank" rel="noopener noreferrer"
-                style={{
-                  fontSize: '11px', fontWeight: '700', color: '#0e7490',
-                  textDecoration: 'none', fontFamily: FONT,
-                  overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-                  maxWidth: '140px',
-                }}>
-                {repo.full_name}
-              </a>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '5px', flexShrink: 0 }}>
-                <span style={{ fontSize: '9px', color: '#6b7280', fontFamily: FONT }}>⭐ {repo.stars || 0}</span>
-              </div>
-            </div>
-
-            {/* Mini graph + stats row */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0' }}>
-              <div style={{ flexShrink: 0 }}>
-                <RepoGraph repo={repo} index={idx} />
-              </div>
-              <div style={{ flex: 1, padding: '0 10px 0 2px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                  <span style={{ fontSize: '9px', color: '#9ca3af', fontFamily: FONT, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Issues explored</span>
-                  <span style={{ fontSize: '18px', fontWeight: '800', color: '#0e7490', fontFamily: FONT, lineHeight: 1 }}>
-                    {repo.viewed_count}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                  <span style={{ fontSize: '9px', color: '#9ca3af', fontFamily: FONT, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Maintainer</span>
-                  <span style={{
-                    fontSize: '10px', fontWeight: '700', fontFamily: FONT,
-                    color: (repo.avg_response_days || 0) <= 1 ? '#16a34a' : '#d97706',
-                  }}>
-                    {responseLabel(repo.avg_response_days)}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            {/* Issues list */}
-            {repo.issues?.length > 0 && (
-              <div style={{ borderTop: '1px solid #f3f4f6', padding: '6px 8px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
-                {repo.issues.map((iss, i) => (
-                  <a key={i} href={iss.url} target="_blank" rel="noopener noreferrer"
-                    style={{
-                      display: 'flex', alignItems: 'flex-start', gap: '5px',
-                      textDecoration: 'none', padding: '2px 0',
-                      opacity: 0, animation: `fadeIn 0.25s ease ${0.1 + i * 0.05}s both`,
-                    }}>
-                    <span style={{
-                      width: '6px', height: '6px', borderRadius: '50%', flexShrink: 0, marginTop: '3px',
-                      background: complexityColor(iss.complexity),
-                    }} />
-                    <span style={{
-                      fontSize: '10px', color: '#374151', fontFamily: FONT,
-                      lineHeight: '1.4', overflow: 'hidden',
-                      display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
-                    }}>
-                      {iss.title}
-                    </span>
-                  </a>
-                ))}
-              </div>
-            )}
-          </div>
+      {/* Legend */}
+      <div style={{
+        display: 'flex', gap: '12px', flexWrap: 'wrap',
+        padding: '5px 14px', borderBottom: '1px solid rgba(0,0,0,0.06)',
+        flexShrink: 0, background: '#fafafa',
+      }}>
+        {[['Repo (explored)', '#0891b2'], ['Maintainer', '#d97706'], ['Beginner issue', '#16a34a'], ['Intermediate', '#d97706'], ['Advanced', '#dc2626']].map(([label, color]) => (
+          <span key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '10px', color: '#64748b', fontFamily: FONT }}>
+            <span style={{ width: 7, height: 7, borderRadius: '50%', background: color, display: 'inline-block' }} />
+            {label}
+          </span>
         ))}
       </div>
 
-      {/* Complexity legend */}
-      {repos.length > 0 && (
-        <div style={{
-          padding: '8px 12px', borderTop: '1px solid #f3f4f6',
-          display: 'flex', gap: '10px', flexShrink: 0,
-        }}>
-          {[['beginner', '#16a34a'], ['intermediate', '#d97706'], ['advanced', '#dc2626']].map(([label, color]) => (
-            <span key={label} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-              <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: color, display: 'inline-block' }} />
-              <span style={{ fontSize: '9px', color: '#9ca3af', fontFamily: FONT }}>{label}</span>
-            </span>
-          ))}
+      {/* Canvas */}
+      <div ref={containerRef} style={{ flex: 1, overflow: 'hidden', position: 'relative', cursor: isEmpty ? 'default' : 'grab' }}>
+
+        {isEmpty ? (
+          <div style={{
+            position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+            alignItems: 'center', justifyContent: 'center',
+            color: '#cbd5e1', fontFamily: FONT, userSelect: 'none',
+          }}>
+            <svg width="80" height="80" viewBox="0 0 80 80" style={{ marginBottom: '12px', opacity: 0.3 }}>
+              <circle cx="40" cy="40" r="12" fill="#0891b2" />
+              {[0,1,2,3,4,5].map(i => {
+                const a = (i/6)*2*Math.PI - Math.PI/2
+                return <g key={i}>
+                  <line x1="40" y1="40" x2={40+Math.cos(a)*28} y2={40+Math.sin(a)*28} stroke="#0891b2" strokeWidth="1.5" />
+                  <circle cx={40+Math.cos(a)*28} cy={40+Math.sin(a)*28} r="5" fill="#16a34a" />
+                </g>
+              })}
+            </svg>
+            <div style={{ fontSize: '12px', fontWeight: '600', color: '#9ca3af', marginBottom: '4px' }}>No exploration yet</div>
+            <div style={{ fontSize: '11px', color: '#cbd5e1', textAlign: 'center', maxWidth: '200px', lineHeight: '1.5' }}>
+              Ask the agent for issues — this graph updates live
+            </div>
+          </div>
+        ) : (
+          <canvas
+            ref={canvasRef}
+            style={{ display: 'block' }}
+            onMouseMove={onMouseMove}
+            onMouseDown={onMouseDown}
+            onMouseUp={onMouseUp}
+            onMouseLeave={onMouseUp}
+            onWheel={onWheel}
+          />
+        )}
+
+        {/* Tooltip */}
+        {tooltip && (
+          <div style={{
+            position: 'absolute', top: 10, right: 10, maxWidth: '220px',
+            background: '#ffffff', border: '1px solid rgba(0,0,0,0.1)',
+            borderRadius: '10px', padding: '10px 12px',
+            fontSize: '12px', color: '#1e293b', pointerEvents: 'none',
+            zIndex: 10, boxShadow: '0 4px 16px rgba(0,0,0,0.1)',
+            fontFamily: FONT,
+          }}>
+            <div style={{
+              display: 'inline-block', marginBottom: '5px',
+              background: nodeColor(tooltip) + '18',
+              color: nodeColor(tooltip),
+              borderRadius: '6px', padding: '1px 8px',
+              fontSize: '10px', fontWeight: '700', textTransform: 'capitalize',
+            }}>{tooltip.kind}</div>
+            <div style={{ fontWeight: '700', marginBottom: '3px', wordBreak: 'break-word', fontSize: '12px' }}>
+              {tooltip.kind === 'repo' ? tooltip.full_name : tooltip.label}
+            </div>
+            {tooltip.kind === 'repo' && (
+              <div style={{ color: '#64748b', fontSize: '11px' }}>
+                ⭐ {tooltip.stars || 0} · ⚡ {tooltip.response_days <= 1 ? '<1 day' : `${Math.round(tooltip.response_days)}d`} response
+              </div>
+            )}
+            {tooltip.kind === 'issue' && tooltip.url && (
+              <div style={{ color: '#0891b2', fontSize: '10px', marginTop: '3px' }}>Click to open on GitHub ↗</div>
+            )}
+            {tooltip.kind === 'maintainer' && (
+              <div style={{ color: '#64748b', fontSize: '11px' }}>avg response: {tooltip.response_days <= 1 ? '<1 day' : `${Math.round(tooltip.response_days)} days`}</div>
+            )}
+          </div>
+        )}
+
+        <div style={{ position: 'absolute', bottom: 8, left: 12, color: '#e2e8f0', fontSize: '10px', pointerEvents: 'none', fontFamily: FONT }}>
+          Scroll to zoom · Drag to pan · Hover for details
         </div>
-      )}
+      </div>
 
       <style>{`
         @keyframes livePulse {
           0%, 100% { opacity: 1; transform: scale(1); }
-          50%       { opacity: 0.5; transform: scale(1.3); }
+          50%       { opacity: 0.5; transform: scale(1.4); }
         }
-        @keyframes nodeFloat {
-          0%, 100% { transform: translateY(0); }
-          50%       { transform: translateY(-2px); }
-        }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
       `}</style>
     </div>
   )

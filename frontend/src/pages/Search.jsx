@@ -193,15 +193,18 @@ export default function Search() {
         <div style={{
           padding: '0 24px', height: '52px', flexShrink: 0,
           borderBottom: '1px solid #e5e7eb', background: '#ffffff',
-          display: 'flex', alignItems: 'center', gap: '10px',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           animation: 'fadeIn 0.35s ease both',
         }}>
-          <span style={{ color: '#374151', fontSize: '13px', fontWeight: '600', fontFamily: FONT }}>Find Open Source Issues</span>
-          <span style={{
-            background: '#ede9fe', color: '#7c3aed', border: '1px solid #ddd6fe',
-            borderRadius: '20px', padding: '2px 9px', fontSize: '10px', fontWeight: '700',
-            fontFamily: FONT, letterSpacing: '0.04em',
-          }}>AI AGENT</span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ color: '#374151', fontSize: '13px', fontWeight: '600', fontFamily: FONT }}>Find Open Source Issues</span>
+            <span style={{
+              background: '#ede9fe', color: '#7c3aed', border: '1px solid #ddd6fe',
+              borderRadius: '20px', padding: '2px 9px', fontSize: '10px', fontWeight: '700',
+              fontFamily: FONT, letterSpacing: '0.04em',
+            }}>AI AGENT</span>
+          </div>
+          <span style={{ fontSize: '11px', color: '#d1d5db', fontFamily: FONT }}>Live Exploration →</span>
         </div>
 
         {/* Chat + Exploration side by side */}
