@@ -13,6 +13,16 @@ NODE_COLORS = {
 }
 
 
+def _run(g, cypher, params=None):
+    """Run a query and return rows, or [] on error."""
+    try:
+        r = g.query(cypher, params or {})
+        return r.result_set
+    except Exception as exc:
+        print(f"[graph] query error: {exc}")
+        return []
+
+
 @router.get("/data")
 def get_graph_data(username: str = Query(None)):
     if not username:
@@ -20,71 +30,75 @@ def get_graph_data(username: str = Query(None)):
 
     try:
         g = get_graph()
-
-        nodes_result = g.query(
-            """
-            MATCH (d:Developer {username: $username})
-            OPTIONAL MATCH (d)-[*1..4]-(n)
-            WITH collect(d) + collect(n) AS all_nodes
-            UNWIND all_nodes AS node
-            RETURN DISTINCT id(node) AS nid, labels(node) AS labels, properties(node) AS props
-            LIMIT 300
-            """,
-            {"username": username},
-        )
-        nodes = []
-        node_ids = set()
-        for row in nodes_result.result_set:
-            nid, labels, props = row
-            if str(nid) in node_ids:
-                continue
-            node_ids.add(str(nid))
-            label = labels[0] if labels else "Unknown"
-            name = (
-                props.get("username") or props.get("full_name") or
-                props.get("name") or props.get("title") or str(nid)
-            )
-            is_current_user = (label == "Developer" and props.get("username") == username)
-            nodes.append({
-                "id": str(nid),
-                "name": name,
-                "type": label,
-                "color": NODE_COLORS.get(label, "#8b949e"),
-                "val": 8 if is_current_user else (4 if label == "Repository" else 2),
-                "props": {k: v for k, v in props.items() if k in (
-                    "username", "full_name", "name", "stars", "complexity", "avg_response_days"
-                )},
-            })
-
-        if not node_ids:
-            return {"nodes": [], "links": []}
-
-        # Only fetch edges between the nodes we already collected, scoped to this user's subgraph
-        edges_result = g.query(
-            """
-            MATCH (d:Developer {username: $username})-[*1..4]-(a)
-            MATCH (a)-[r]->(b)
-            WHERE id(b) IN $node_id_list
-            RETURN DISTINCT id(a) AS src, id(b) AS tgt, type(r) AS rel
-            LIMIT 500
-            """,
-            {"username": username, "node_id_list": [int(i) for i in node_ids]},
-        )
+        nodes = {}   # id -> node dict
         links = []
-        connected_ids = set()
-        for row in edges_result.result_set:
-            src, tgt, rel_type = row
-            if str(src) in node_ids and str(tgt) in node_ids:
-                links.append({"source": str(src), "target": str(tgt), "type": rel_type})
-                connected_ids.add(str(src))
-                connected_ids.add(str(tgt))
 
-        # Also include the developer node itself even if isolated
-        dev_nodes = [n for n in nodes if n["type"] == "Developer"]
-        connected_nodes = [n for n in nodes if n["id"] in connected_ids]
-        all_display = {n["id"]: n for n in dev_nodes + connected_nodes}
+        def add_node(nid, label, name, props=None):
+            key = str(nid)
+            if key not in nodes:
+                nodes[key] = {
+                    "id": key,
+                    "name": name,
+                    "type": label,
+                    "color": NODE_COLORS.get(label, "#8b949e"),
+                    "val": 8 if label == "Developer" else (4 if label == "Repository" else 2),
+                    "props": props or {},
+                }
 
-        return {"nodes": list(all_display.values()), "links": links}
+        def add_link(src, tgt, rel):
+            links.append({"source": str(src), "target": str(tgt), "type": rel})
+
+        # 1. Developer node
+        for row in _run(g, "MATCH (d:Developer {username:$u}) RETURN id(d),d.username,d.name", {"u": username}):
+            add_node(row[0], "Developer", row[1] or row[2] or username)
+
+        # 2. Developer → CONTRIBUTED_TO → Repository
+        for row in _run(g,
+            "MATCH (d:Developer {username:$u})-[:CONTRIBUTED_TO]->(r:Repository) RETURN id(d),id(r),r.full_name,r.stars",
+            {"u": username}):
+            add_node(row[1], "Repository", row[2] or "", {"full_name": row[2], "stars": row[3]})
+            add_link(row[0], row[1], "CONTRIBUTED_TO")
+
+        # 3. Developer → HAS_SKILL → Skill
+        for row in _run(g,
+            "MATCH (d:Developer {username:$u})-[:HAS_SKILL]->(s:Skill) RETURN id(d),id(s),s.name",
+            {"u": username}):
+            add_node(row[1], "Skill", row[2] or "")
+            add_link(row[0], row[1], "HAS_SKILL")
+
+        # 4. Repos → MAINTAINED_BY → Maintainer  (only repos already in graph)
+        for row in _run(g,
+            """
+            MATCH (d:Developer {username:$u})-[:CONTRIBUTED_TO]->(r:Repository)-[:MAINTAINED_BY]->(m:Maintainer)
+            RETURN id(r),id(m),m.username,m.avg_response_days
+            """,
+            {"u": username}):
+            add_node(row[1], "Maintainer", row[2] or "", {"avg_response_days": row[3]})
+            add_link(row[0], row[1], "MAINTAINED_BY")
+
+        # 5. Repos → HAS_ISSUE → Issue  (limit to 30 most recent)
+        for row in _run(g,
+            """
+            MATCH (d:Developer {username:$u})-[:CONTRIBUTED_TO]->(r:Repository)-[:HAS_ISSUE]->(i:Issue)
+            WHERE i.state = 'open'
+            RETURN id(r),id(i),i.title,i.complexity
+            LIMIT 30
+            """,
+            {"u": username}):
+            add_node(row[1], "Issue", row[2] or "", {"complexity": row[3]})
+            add_link(row[0], row[1], "HAS_ISSUE")
+
+        # 6. Repos → REQUIRES_SKILL → Skill  (only skills already in graph)
+        for row in _run(g,
+            """
+            MATCH (d:Developer {username:$u})-[:CONTRIBUTED_TO]->(r:Repository)-[:REQUIRES_SKILL]->(s:Skill)
+            RETURN id(r),id(s)
+            """,
+            {"u": username}):
+            if str(row[0]) in nodes and str(row[1]) in nodes:
+                add_link(row[0], row[1], "REQUIRES_SKILL")
+
+        return {"nodes": list(nodes.values()), "links": links}
 
     except Exception as exc:
         print(f"[graph] get_graph_data error: {exc}")
