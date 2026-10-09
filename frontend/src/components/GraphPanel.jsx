@@ -79,17 +79,52 @@ export default function GraphPanel({ username, highlightIds = [] }) {
     ctx.translate(canvas.width / 2 + panX, canvas.height / 2 + panY)
     ctx.scale(zoom, zoom)
 
-    // Draw edges first
+    // Draw edges with arrowheads
+    const ARROW_LEN = 7
+    const ARROW_ANGLE = Math.PI / 6  // 30°
     for (const link of graphData.links) {
       const src = nodeMap[link.source] || nodeMap[link.source?.id]
       const tgt = nodeMap[link.target] || nodeMap[link.target?.id]
       if (!src || !tgt) continue
       const hl = highlightSet.has(src.id) && highlightSet.has(tgt.id)
+      const color = hl ? 'rgba(255,215,0,0.9)' : 'rgba(255,255,255,0.35)'
+      const lw = (hl ? 2 : 1) / zoom
+
+      const dx = tgt.x - src.x
+      const dy = tgt.y - src.y
+      const len = Math.sqrt(dx * dx + dy * dy)
+      if (len < 1) continue
+      const ux = dx / len
+      const uy = dy / len
+
+      // Stop line at the target node edge
+      const tgtR = NODE_R[tgt.type] ?? 5
+      const ex = tgt.x - ux * tgtR
+      const ey = tgt.y - uy * tgtR
+
+      // Line
       ctx.beginPath()
       ctx.moveTo(src.x, src.y)
-      ctx.lineTo(tgt.x, tgt.y)
-      ctx.strokeStyle = hl ? 'rgba(255,215,0,0.9)' : 'rgba(255,255,255,0.35)'
-      ctx.lineWidth = (hl ? 2 : 1) / zoom
+      ctx.lineTo(ex, ey)
+      ctx.strokeStyle = color
+      ctx.lineWidth = lw
+      ctx.stroke()
+
+      // Arrowhead
+      const aLen = ARROW_LEN / zoom
+      ctx.beginPath()
+      ctx.moveTo(ex, ey)
+      ctx.lineTo(
+        ex - aLen * Math.cos(Math.atan2(uy, ux) - ARROW_ANGLE),
+        ey - aLen * Math.sin(Math.atan2(uy, ux) - ARROW_ANGLE)
+      )
+      ctx.moveTo(ex, ey)
+      ctx.lineTo(
+        ex - aLen * Math.cos(Math.atan2(uy, ux) + ARROW_ANGLE),
+        ey - aLen * Math.sin(Math.atan2(uy, ux) + ARROW_ANGLE)
+      )
+      ctx.strokeStyle = color
+      ctx.lineWidth = lw
       ctx.stroke()
     }
 
