@@ -258,6 +258,21 @@ def query_matching_issues(username: str, max_response_days: int = 7, complexity:
     return [dict(zip(result.header, row)) for row in result.result_set]
 
 
+def get_repos_without_issues(username: str, limit: int = 5) -> list[str]:
+    """Return full_names of repos that match the user's skills but have no issues ingested yet."""
+    g = get_graph()
+    result = g.query(
+        """
+        MATCH (d:Developer {username: $username})-[:HAS_SKILL]->(s:Skill)<-[:REQUIRES_SKILL]-(r:Repository)
+        WHERE NOT EXISTS { MATCH (r)-[:HAS_ISSUE]->(:Issue) }
+        RETURN DISTINCT r.full_name AS full_name
+        LIMIT $limit
+        """,
+        {"username": username, "limit": limit},
+    )
+    return [row[0] for row in result.result_set if row[0]]
+
+
 def query_skill_gaps(username: str, repo_full_name: str) -> list:
     g = get_graph()
     result = g.query(

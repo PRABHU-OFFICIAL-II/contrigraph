@@ -157,13 +157,13 @@ export default function GraphPanel({ username, highlightIds = [] }) {
   const linkColor = useCallback(link => {
     const s = typeof link.source === 'object' ? link.source.id : link.source
     const t = typeof link.target === 'object' ? link.target.id : link.target
-    return highlightSet.has(s) && highlightSet.has(t) ? 'rgba(255,215,0,0.8)' : 'rgba(255,255,255,0.2)'
+    return highlightSet.has(s) && highlightSet.has(t) ? 'rgba(255,215,0,0.9)' : 'rgba(255,255,255,0.55)'
   }, [highlightIds])
 
   const linkWidth = useCallback(link => {
     const s = typeof link.source === 'object' ? link.source.id : link.source
     const t = typeof link.target === 'object' ? link.target.id : link.target
-    return highlightSet.has(s) && highlightSet.has(t) ? 2 : 0.8
+    return highlightSet.has(s) && highlightSet.has(t) ? 2.5 : 1.5
   }, [highlightIds])
 
   const typeCounts = graphData.nodes.reduce((acc, n) => {

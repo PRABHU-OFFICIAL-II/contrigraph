@@ -144,22 +144,42 @@ async def _dispatch(name: str, args: dict):
         return ingestion.ingest_developer(args["github_username"])
 
     if name == "find_matching_issues":
+        username = args["username"]
         issues = g.query_matching_issues(
-            username=args["username"],
+            username=username,
             max_response_days=args.get("max_response_days", 7),
             complexity=args.get("complexity"),
             limit=args.get("limit", 10),
         )
+        print(f"[find_matching_issues] returned {len(issues)} issues for {username}")
+
+        # If empty, auto-ingest issues for repos matching the user's skills then retry
+        if not issues:
+            repos_to_ingest = g.get_repos_without_issues(username, limit=5)
+            print(f"[find_matching_issues] no issues — auto-ingesting {repos_to_ingest}")
+            for repo in repos_to_ingest:
+                try:
+                    ingestion.ingest_repo_issues(repo)
+                except Exception as e:
+                    print(f"  ✗ ingest_repo_issues({repo}) failed: {e}")
+            # Retry after ingestion
+            issues = g.query_matching_issues(
+                username=username,
+                max_response_days=args.get("max_response_days", 7),
+                complexity=args.get("complexity"),
+                limit=args.get("limit", 10),
+            )
+            print(f"[find_matching_issues] after auto-ingest: {len(issues)} issues")
+
         # Auto-write VIEWED for every returned issue so history is always populated
-        session_id = args.get("session_id", f"{args['username']}-auto")
-        print(f"[find_matching_issues] returned {len(issues)} issues for {args['username']}")
+        session_id = args.get("session_id", f"{username}-auto")
         for issue in issues:
             issue_id = issue.get("issue_id")
             print(f"  → issue_id={issue_id!r} title={issue.get('title','')[:50]}")
             if issue_id:
                 try:
                     g.write_session_action(
-                        username=args["username"],
+                        username=username,
                         issue_id=str(issue_id),
                         action="viewed",
                         session_id=session_id,
