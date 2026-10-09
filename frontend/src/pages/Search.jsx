@@ -18,6 +18,7 @@ export default function Search() {
   const [showGraph, setShowGraph] = useState(true)
   const [highlightIds, setHighlightIds] = useState([])
   const [historyTick, setHistoryTick] = useState(0)
+  const [graphTick, setGraphTick] = useState(0)
 
   return (
     <div style={{
@@ -147,10 +148,10 @@ export default function Search() {
         {/* Content */}
         <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
           <div style={{ flex: showGraph ? '0 0 55%' : '1', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-            <ChatPanel username={username} sessionId={SESSION_ID} onToolCall={() => {}} onAgentDone={() => setHistoryTick(t => t + 1)} />
+            <ChatPanel username={username} sessionId={SESSION_ID} onToolCall={() => {}} onAgentDone={() => { setHistoryTick(t => t + 1); setGraphTick(t => t + 1) }} />
           </div>
           <div style={{ flex: 1, borderLeft: '1px solid rgba(255,255,255,0.06)', overflow: 'hidden', display: showGraph ? 'block' : 'none' }}>
-            <GraphPanel username={username} highlightIds={highlightIds} visible={showGraph} />
+            <GraphPanel username={username} highlightIds={highlightIds} visible={showGraph} refreshTick={graphTick} />
           </div>
         </div>
       </main>

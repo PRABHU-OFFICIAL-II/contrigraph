@@ -47,7 +47,7 @@ function displayName(node) {
   return n.length > 18 ? n.slice(0, 17) + '…' : n
 }
 
-export default function GraphPanel({ username, highlightIds = [], visible = true }) {
+export default function GraphPanel({ username, highlightIds = [], visible = true, refreshTick = 0 }) {
   const [graphData, setGraphData] = useState({ nodes: [], links: [] })
   const containerRef = useRef(null)
   const canvasRef    = useRef(null)
@@ -60,14 +60,22 @@ export default function GraphPanel({ username, highlightIds = [], visible = true
   const nodeMap = {}
   for (const n of graphData.nodes) nodeMap[n.id] = n
 
-  // ── Fetch graph data — on mount and whenever panel becomes visible ────────
-  useEffect(() => {
-    if (!username || !visible) return
+  const [fetching, setFetching] = useState(false)
+
+  function fetchGraph() {
+    if (!username) return
+    setFetching(true)
     fetch(`/api/graph/data?username=${username}`)
       .then(r => r.json())
-      .then(data => setGraphData(layoutNodes(data, username)))
-      .catch(() => {})
-  }, [username, visible])
+      .then(data => { setGraphData(layoutNodes(data, username)); setFetching(false) })
+      .catch(() => setFetching(false))
+  }
+
+  // ── Fetch on mount, when panel becomes visible, or when refreshTick changes
+  useEffect(() => {
+    if (!visible) return
+    fetchGraph()
+  }, [username, visible, refreshTick])
 
   // ── Draw ──────────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -283,8 +291,22 @@ export default function GraphPanel({ username, highlightIds = [], visible = true
 
       {/* Header */}
       <div style={{ padding: '10px 16px', borderBottom: '1px solid rgba(255,255,255,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-        <span style={{ color: '#e2e8f0', fontSize: '11px', fontWeight: '700' }}>Live Graph — FalkorDB</span>
-        <span style={{ color: '#475569', fontSize: '11px' }}>{graphData.nodes.length} nodes · {graphData.links.length} edges</span>
+        <span style={{ color: '#e2e8f0', fontSize: '11px', fontWeight: '700' }}>Graph — FalkorDB</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ color: '#475569', fontSize: '11px' }}>{graphData.nodes.length} nodes · {graphData.links.length} edges</span>
+          <button
+            onClick={fetchGraph}
+            title="Refresh graph"
+            style={{
+              background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px',
+              color: fetching ? '#7c3aed' : '#475569', fontSize: '14px', lineHeight: 1,
+              transition: 'color 0.2s',
+              animation: fetching ? 'spin 0.8s linear infinite' : 'none',
+            }}
+            onMouseEnter={e => { if (!fetching) e.currentTarget.style.color = '#a78bfa' }}
+            onMouseLeave={e => { if (!fetching) e.currentTarget.style.color = '#475569' }}
+          >↻</button>
+        </div>
       </div>
 
       {/* Legend */}
@@ -335,6 +357,7 @@ export default function GraphPanel({ username, highlightIds = [], visible = true
         <div style={{ position: 'absolute', bottom: 8, left: 12, color: '#1e2a3a', fontSize: '10px', pointerEvents: 'none' }}>
           Scroll to zoom · Drag to pan · Hover for details
         </div>
+        <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
       </div>
     </div>
   )
