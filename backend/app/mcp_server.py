@@ -152,8 +152,10 @@ async def _dispatch(name: str, args: dict):
         )
         # Auto-write VIEWED for every returned issue so history is always populated
         session_id = args.get("session_id", f"{args['username']}-auto")
+        print(f"[find_matching_issues] returned {len(issues)} issues for {args['username']}")
         for issue in issues:
             issue_id = issue.get("issue_id")
+            print(f"  → issue_id={issue_id!r} title={issue.get('title','')[:50]}")
             if issue_id:
                 try:
                     g.write_session_action(
@@ -162,8 +164,9 @@ async def _dispatch(name: str, args: dict):
                         action="viewed",
                         session_id=session_id,
                     )
-                except Exception:
-                    pass
+                    print(f"  ✓ wrote VIEWED for {issue_id}")
+                except Exception as e:
+                    print(f"  ✗ write_session_action failed: {e}")
         return issues
 
     if name == "analyse_skill_gaps":
