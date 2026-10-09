@@ -144,12 +144,27 @@ async def _dispatch(name: str, args: dict):
         return ingestion.ingest_developer(args["github_username"])
 
     if name == "find_matching_issues":
-        return g.query_matching_issues(
+        issues = g.query_matching_issues(
             username=args["username"],
             max_response_days=args.get("max_response_days", 7),
             complexity=args.get("complexity"),
             limit=args.get("limit", 10),
         )
+        # Auto-write VIEWED for every returned issue so history is always populated
+        session_id = args.get("session_id", f"{args['username']}-auto")
+        for issue in issues:
+            issue_id = issue.get("issue_id")
+            if issue_id:
+                try:
+                    g.write_session_action(
+                        username=args["username"],
+                        issue_id=str(issue_id),
+                        action="viewed",
+                        session_id=session_id,
+                    )
+                except Exception:
+                    pass
+        return issues
 
     if name == "analyse_skill_gaps":
         return g.query_skill_gaps(args["username"], args["repo_full_name"])

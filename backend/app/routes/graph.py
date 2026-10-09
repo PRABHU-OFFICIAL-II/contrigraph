@@ -15,11 +15,24 @@ NODE_COLORS = {
 
 @router.get("/data")
 def get_graph_data(username: str = Query(None)):
-    """Return all nodes and edges for the graph visualiser."""
+    """Return nodes and edges reachable from the current user's Developer node."""
     g = get_graph()
 
-    # Fetch all nodes with their labels
-    nodes_result = g.query("MATCH (n) RETURN id(n) AS nid, labels(n) AS labels, properties(n) AS props LIMIT 300")
+    if not username:
+        return {"nodes": [], "links": []}
+
+    # Only fetch nodes reachable from this user within 4 hops
+    nodes_result = g.query(
+        """
+        MATCH (d:Developer {username: $username})
+        OPTIONAL MATCH (d)-[*1..4]-(n)
+        WITH collect(d) + collect(n) AS all_nodes
+        UNWIND all_nodes AS node
+        RETURN DISTINCT id(node) AS nid, labels(node) AS labels, properties(node) AS props
+        LIMIT 300
+        """,
+        {"username": username},
+    )
     nodes = []
     node_ids = set()
     for row in nodes_result.result_set:
@@ -42,24 +55,21 @@ def get_graph_data(username: str = Query(None)):
             "props": {k: v for k, v in props.items() if k in ("username", "full_name", "name", "stars", "complexity", "avg_response_days")},
         })
 
-    # Fetch all edges
+    if not node_ids:
+        return {"nodes": [], "links": []}
+
+    # Fetch edges between nodes we already collected
     edges_result = g.query("MATCH (a)-[r]->(b) RETURN id(a), id(b), type(r) LIMIT 500")
     links = []
     connected_ids = set()
     for row in edges_result.result_set:
         src, tgt, rel_type = row
         if str(src) in node_ids and str(tgt) in node_ids:
-            links.append({
-                "source": str(src),
-                "target": str(tgt),
-                "type": rel_type,
-            })
+            links.append({"source": str(src), "target": str(tgt), "type": rel_type})
             connected_ids.add(str(src))
             connected_ids.add(str(tgt))
 
-    # Only return nodes that participate in at least one edge
     connected_nodes = [n for n in nodes if n["id"] in connected_ids]
-
     return {"nodes": connected_nodes, "links": links}
 
 
