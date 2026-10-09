@@ -31,18 +31,33 @@ export default function Search() {
         display: 'flex', flexDirection: 'column', overflow: 'hidden',
       }}>
         {/* Brand */}
-        <div style={{ padding: '20px 18px 16px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+        <div style={{ padding: '16px 18px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
             <div style={{
               width: '32px', height: '32px', borderRadius: '9px', flexShrink: 0,
               background: 'linear-gradient(135deg, #7c3aed, #2563eb)',
               display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '14px',
             }}>🔗</div>
-            <div>
+            <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ color: '#e2e8f0', fontWeight: '700', fontSize: '14px', letterSpacing: '-0.01em' }}>ContriGraph</div>
-              <div style={{ color: '#7c3aed', fontSize: '11px', fontWeight: '500' }}>@{username}</div>
+              <div style={{ color: '#7c3aed', fontSize: '11px', fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>@{username}</div>
             </div>
           </div>
+          {/* Logout */}
+          <button
+            onClick={() => navigate('/')}
+            style={{
+              width: '100%', padding: '6px', borderRadius: '7px', fontSize: '11px',
+              background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)',
+              color: '#64748b', cursor: 'pointer', fontFamily: 'inherit',
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)'; e.currentTarget.style.color = '#f87171' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.08)'; e.currentTarget.style.color = '#64748b' }}
+          >
+            ⏏ Log out
+          </button>
         </div>
 
         {/* Skills */}
