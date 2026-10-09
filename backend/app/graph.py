@@ -255,38 +255,19 @@ def query_matching_issues(username: str, max_response_days: int = 30, complexity
 
 
 def get_repos_without_issues(username: str, limit: int = 10) -> list[str]:
-    """Return full_names of repos relevant to the user that have no issues ingested yet."""
+    """Return full_names of skill-matched repos (not owned by user) that have no issues yet."""
     g = get_graph()
-    # Repos where developer contributed directly
-    r1 = g.query(
-        """
-        MATCH (d:Developer {username: $username})-[:CONTRIBUTED_TO]->(r:Repository)
-        WHERE NOT (r)-[:HAS_ISSUE]->(:Issue)
-        RETURN DISTINCT r.full_name AS full_name
-        LIMIT $limit
-        """,
-        {"username": username, "limit": limit},
-    )
-    # Repos matching user's skills
-    r2 = g.query(
+    result = g.query(
         """
         MATCH (d:Developer {username: $username})-[:HAS_SKILL]->(s:Skill)<-[:REQUIRES_SKILL]-(r:Repository)
         WHERE NOT (r)-[:HAS_ISSUE]->(:Issue)
+          AND NOT r.full_name STARTS WITH $username
         RETURN DISTINCT r.full_name AS full_name
         LIMIT $limit
         """,
         {"username": username, "limit": limit},
     )
-    seen = set()
-    results = []
-    for row in r1.result_set + r2.result_set:
-        fn = row[0]
-        if fn and fn not in seen:
-            seen.add(fn)
-            results.append(fn)
-        if len(results) >= limit:
-            break
-    return results
+    return [row[0] for row in result.result_set if row[0]]
 
 
 def query_skill_gaps(username: str, repo_full_name: str) -> list:
