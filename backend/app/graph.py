@@ -412,15 +412,19 @@ def query_developer_stats(username: str) -> dict:
     )
     skills = [{"name": row[0], "category": row[1]} for row in skills_res.result_set]
 
-    # Action counts
+    # Action counts — aggregate each hop separately to avoid Cartesian product
     counts_res = graph.query(
         """
         MATCH (d:Developer {username: $username})
+        WITH d
         OPTIONAL MATCH (d)-[v:VIEWED]->()
+        WITH d, count(v) AS viewed
         OPTIONAL MATCH (d)-[b:BOOKMARKED]->()
+        WITH d, viewed, count(b) AS bookmarked
         OPTIONAL MATCH (d)-[sk:SKIPPED]->()
+        WITH d, viewed, bookmarked, count(sk) AS skipped
         OPTIONAL MATCH (d)-[ap:APPLIED_TO]->()
-        RETURN count(v) AS viewed, count(b) AS bookmarked, count(sk) AS skipped, count(ap) AS applied
+        RETURN viewed, bookmarked, skipped, count(ap) AS applied
         """,
         {"username": username},
     )
