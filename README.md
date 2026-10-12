@@ -6,21 +6,6 @@ ContriGraph is an AI agent that uses a FalkorDB knowledge graph to match develop
 
 ---
 
-## Hackathon Submission
-
-> **Graph Hacks 2026** — Organized by [WeMakeDevs](https://wemakedevs.org) + [FalkorDB](https://falkordb.com)
->
-> **[View Hackathon](https://www.wemakedevs.org/hackathons/falkordb#challenge)** · Total Prize Pool: **$20,000**
-
-| Track | Prize | Our Submission |
-|---|---|---|
-| **Track 01** — Agents That Act on Connected Data | 📱 iPhone 18 Pro | Multi-hop Cypher agent that traverses Developer→Skill→Issue→Repo→Maintainer at query time |
-| **Track 02** — Agent Memory and Coordination | 🎮 PS5 + GTA VI | VIEWED/BOOKMARKED/SKIPPED/APPLIED_TO typed edges written to FalkorDB on every interaction |
-
-> **AI Disclosure (Rule 11):** This project was built with the assistance of an AI coding tool (Claude Code by Anthropic). All graph design, Cypher queries, architecture decisions, and product direction are by the developer.
-
----
-
 ## The Core Idea
 
 Most "find issues" tools do keyword search. ContriGraph does **graph traversal**.
