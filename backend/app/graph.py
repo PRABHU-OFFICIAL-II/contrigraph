@@ -400,3 +400,64 @@ def write_session_action(username: str, issue_id: str, action: str, session_id: 
         """,
         params,
     )
+
+
+def query_developer_stats(username: str) -> dict:
+    graph = get_graph()
+
+    # Skills
+    skills_res = graph.query(
+        "MATCH (d:Developer {username: $username})-[:HAS_SKILL]->(s:Skill) RETURN s.name, s.category ORDER BY s.category, s.name",
+        {"username": username},
+    )
+    skills = [{"name": row[0], "category": row[1]} for row in skills_res.result_set]
+
+    # Action counts
+    counts_res = graph.query(
+        """
+        MATCH (d:Developer {username: $username})
+        OPTIONAL MATCH (d)-[v:VIEWED]->()
+        OPTIONAL MATCH (d)-[b:BOOKMARKED]->()
+        OPTIONAL MATCH (d)-[sk:SKIPPED]->()
+        OPTIONAL MATCH (d)-[ap:APPLIED_TO]->()
+        RETURN count(v) AS viewed, count(b) AS bookmarked, count(sk) AS skipped, count(ap) AS applied
+        """,
+        {"username": username},
+    )
+    counts = {"viewed": 0, "bookmarked": 0, "skipped": 0, "applied": 0}
+    if counts_res.result_set:
+        row = counts_res.result_set[0]
+        counts = {"viewed": row[0], "bookmarked": row[1], "skipped": row[2], "applied": row[3]}
+
+    # Repos explored (from session actions)
+    repos_res = graph.query(
+        """
+        MATCH (d:Developer {username: $username})-[:VIEWED|BOOKMARKED|APPLIED_TO]->(i:Issue)<-[:HAS_ISSUE]-(r:Repository)
+        RETURN DISTINCT r.full_name, r.stars
+        ORDER BY r.stars DESC
+        LIMIT 8
+        """,
+        {"username": username},
+    )
+    top_repos = [{"full_name": row[0], "stars": row[1]} for row in repos_res.result_set if row[0]]
+
+    # Total issues and repos in graph matched to this developer
+    graph_size_res = graph.query(
+        """
+        MATCH (d:Developer {username: $username})-[:HAS_SKILL]->(s:Skill)<-[:NEEDS_SKILL]-(i:Issue)<-[:HAS_ISSUE]-(r:Repository)
+        RETURN count(DISTINCT i) AS issues, count(DISTINCT r) AS repos
+        """,
+        {"username": username},
+    )
+    graph_size = {"issues": 0, "repos": 0}
+    if graph_size_res.result_set:
+        row = graph_size_res.result_set[0]
+        graph_size = {"issues": row[0] or 0, "repos": row[1] or 0}
+
+    return {
+        "username": username,
+        "skills": skills,
+        "action_counts": counts,
+        "top_repos": top_repos,
+        "graph_size": graph_size,
+    }

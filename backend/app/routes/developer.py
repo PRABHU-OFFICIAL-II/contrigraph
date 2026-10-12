@@ -24,6 +24,15 @@ def ingest_developer(req: IngestRequest):
         raise HTTPException(status_code=500, detail=str(exc))
 
 
+@router.get("/{username}/stats")
+def get_developer_stats(username: str):
+    try:
+        return g.query_developer_stats(username)
+    except Exception as exc:
+        print(f"[developer] get_developer_stats error: {exc}")
+        raise HTTPException(status_code=500, detail=str(exc))
+
+
 @router.get("/{username}")
 def get_developer(username: str):
     try:

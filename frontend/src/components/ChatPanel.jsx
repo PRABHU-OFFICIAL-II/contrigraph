@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
-import { streamChat } from '../utils/api.js'
+import { streamChat, recordAction } from '../utils/api.js'
 
 const FONT = 'Verdana, Geneva, Tahoma, sans-serif'
 
@@ -21,8 +21,8 @@ const DARK = {
 const SUGGESTED = [
   { icon: '🔍', text: 'Find me beginner Python issues with active maintainers' },
   { icon: '🎯', text: 'What open source issues match my skills?' },
-  { icon: '📚', text: 'Show my exploration history from this week' },
-  { icon: '📦', text: 'Ingest issues from tiangolo/fastapi' },
+  { icon: '🔭', text: 'Show me TypeScript issues to pick' },
+  { icon: '📊', text: 'Analyse skill gaps for microsoft/vscode' },
 ]
 
 const TOOL_LABELS = {
@@ -35,6 +35,12 @@ const TOOL_LABELS = {
   remember_action:       '💾 Saved to memory',
   get_session_history:   '🕐 Loaded session history',
   ingest_repo_issues:    '📥 Ingested repo issues',
+}
+
+const COMPLEXITY_COLORS = {
+  beginner: { bg: '#dcfce7', text: '#16a34a' },
+  intermediate: { bg: '#fef3c7', text: '#d97706' },
+  advanced: { bg: '#fee2e2', text: '#dc2626' },
 }
 
 function makeComponents(T) {
@@ -138,6 +144,108 @@ function ToolSummary({ tools, T }) {
   )
 }
 
+function IssueActionCards({ issues, username, sessionId, onActionTaken, T }) {
+  const [actions, setActions] = useState({})
+
+  async function doAction(issue, action) {
+    if (actions[issue.issue_id]) return
+    setActions(prev => ({ ...prev, [issue.issue_id]: action }))
+    try {
+      await recordAction(username, {
+        issue_id: issue.issue_id,
+        action,
+        session_id: sessionId,
+      })
+      onActionTaken?.()
+    } catch (e) {
+      console.error('recordAction failed', e)
+    }
+  }
+
+  const actionDefs = [
+    { key: 'bookmarked', label: 'Bookmark', icon: '🔖', color: '#d97706', bg: '#fef3c7' },
+    { key: 'skipped',    label: 'Skip',     icon: '⏭',  color: '#6b7280', bg: T.surface2 },
+    { key: 'applied_to', label: 'Apply',   icon: '✅', color: '#16a34a', bg: '#dcfce7' },
+  ]
+
+  return (
+    <div style={{ marginTop: '12px', paddingTop: '12px', borderTop: '1px solid rgba(124,58,237,0.2)', animation: 'fadeInUp 0.3s ease both' }}>
+      <div style={{
+        fontSize: '10px', color: '#7c3aed', fontFamily: FONT,
+        textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: '8px', fontWeight: '700',
+        display: 'flex', alignItems: 'center', gap: '6px',
+      }}>
+        <span style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: '#7c3aed', boxShadow: '0 0 5px rgba(124,58,237,0.7)' }} />
+        Quick actions — save to graph memory
+      </div>
+      <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
+        {issues.slice(0, 6).map((issue, i) => {
+          const taken = actions[issue.issue_id]
+          const takenDef = actionDefs.find(a => a.key === taken)
+          const cx = COMPLEXITY_COLORS[issue.complexity] || { bg: '#f3f4f6', text: '#6b7280' }
+
+          return (
+            <div key={issue.issue_id || i} style={{
+              minWidth: '180px', maxWidth: '200px', flexShrink: 0,
+              border: `1px solid ${taken ? (takenDef?.color || T.border) : T.border}`,
+              borderRadius: '10px', padding: '10px', background: taken ? (takenDef?.bg || T.surface) : T.surface,
+              transition: 'all 0.2s ease',
+              animation: `fadeInUp 0.3s ease ${i * 0.05}s both`,
+              opacity: taken ? 0.75 : 1,
+            }}>
+              <div style={{
+                fontSize: '11px', fontWeight: '600', color: T.text,
+                fontFamily: FONT, lineHeight: '1.4', marginBottom: '4px',
+                overflow: 'hidden', display: '-webkit-box',
+                WebkitLineClamp: 2, WebkitBoxOrient: 'vertical',
+              }}>
+                <a href={issue.url} target="_blank" rel="noopener noreferrer"
+                  style={{ color: T.text, textDecoration: 'none' }}
+                  onMouseEnter={e => e.currentTarget.style.color = '#7c3aed'}
+                  onMouseLeave={e => e.currentTarget.style.color = T.text}
+                >{issue.title}</a>
+              </div>
+              <div style={{ fontSize: '10px', color: T.textSubtle, fontFamily: FONT, marginBottom: '6px' }}>
+                {issue.repo}
+              </div>
+              {issue.complexity && (
+                <span style={{
+                  fontSize: '9px', padding: '2px 6px', borderRadius: '10px',
+                  background: cx.bg, color: cx.text, fontWeight: '700',
+                  fontFamily: FONT, textTransform: 'capitalize', display: 'inline-block', marginBottom: '8px',
+                }}>{issue.complexity}</span>
+              )}
+              {taken ? (
+                <div style={{ fontSize: '11px', color: takenDef?.color, fontFamily: FONT, fontWeight: '600' }}>
+                  {takenDef?.icon} {takenDef?.key === 'skipped' ? 'Skipped' : takenDef?.key === 'bookmarked' ? 'Bookmarked' : 'Applied'} — saved to graph
+                </div>
+              ) : (
+                <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+                  {actionDefs.map(a => (
+                    <button key={a.key} onClick={() => doAction(issue, a.key)}
+                      title={a.label}
+                      style={{
+                        padding: '3px 8px', borderRadius: '6px', border: `1px solid ${T.border}`,
+                        background: T.surface2, color: T.textMuted, fontSize: '11px',
+                        cursor: 'pointer', fontFamily: FONT, transition: 'all 0.15s',
+                        display: 'flex', alignItems: 'center', gap: '3px',
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.background = a.bg; e.currentTarget.style.borderColor = a.color; e.currentTarget.style.color = a.color }}
+                      onMouseLeave={e => { e.currentTarget.style.background = T.surface2; e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.textMuted }}
+                    >
+                      {a.icon} {a.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 const WELCOME = {
   role: 'assistant',
   content: `Hi! I'm **ContriGraph**. I've loaded your GitHub graph — you know **Python, JavaScript, TypeScript, Java, Go, Dart, and HTML**.\n\nWhat kind of open source issue are you looking for today?`,
@@ -166,6 +274,12 @@ export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, loading])
 
+  useEffect(() => {
+    function handleExternal(e) { send(e.detail) }
+    window.addEventListener('contrigraph-send', handleExternal)
+    return () => window.removeEventListener('contrigraph-send', handleExternal)
+  }, [loading, messages])
+
   async function send(text) {
     const msg = text || input.trim()
     if (!msg || loading) return
@@ -173,7 +287,7 @@ export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone
     setActiveTools([])
     setMessages(prev => [...prev,
       { role: 'user', content: msg },
-      { role: 'assistant', content: '', toolCalls: [] },
+      { role: 'assistant', content: '', toolCalls: [], issues: [] },
     ])
     setLoading(true)
 
@@ -200,6 +314,13 @@ export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone
           const updated = [...prev]
           const last = updated[updated.length - 1]
           updated[updated.length - 1] = { ...last, toolCalls: [...(last.toolCalls || []), tool] }
+          return updated
+        })
+      },
+      onIssues: (result) => {
+        setMessages(prev => {
+          const updated = [...prev]
+          updated[updated.length - 1] = { ...updated[updated.length - 1], issues: result }
           return updated
         })
       },
@@ -237,11 +358,22 @@ export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone
                 color: m.role === 'user' ? '#ffffff' : T.text,
                 fontSize: '13px', lineHeight: '1.7', fontFamily: FONT,
                 boxShadow: '0 1px 3px rgba(0,0,0,0.07)',
+                width: m.role === 'assistant' ? '100%' : undefined,
+                boxSizing: 'border-box',
               }}>
                 {m.role === 'assistant'
                   ? <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>{m.content}</ReactMarkdown>
                   : <span style={{ fontFamily: FONT }}>{m.content}</span>
                 }
+                {m.role === 'assistant' && m.issues?.length > 0 && (
+                  <IssueActionCards
+                    issues={m.issues}
+                    username={username}
+                    sessionId={sessionId}
+                    onActionTaken={onAgentDone}
+                    T={T}
+                  />
+                )}
               </div>
             )}
           </div>
@@ -271,7 +403,7 @@ export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone
                 background: '#ede9fe', padding: '3px 10px',
                 borderRadius: '20px', border: '1px solid #ddd6fe',
               }}>
-                {TOOL_LABELS[activeTools[activeTools.length - 1]] || 'Thinking…'}
+                {TOOL_LABELS[activeTools[activeTools.length - 1]] || 'Thinking...'}
               </span>
             )}
           </div>
@@ -313,7 +445,7 @@ export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone
             onChange={e => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             disabled={loading}
-            placeholder="Ask about issues, skills, maintainers…"
+            placeholder="Ask about issues, skills, maintainers..."
             style={{
               flex: 1, padding: '11px 14px',
               background: T.input, border: `1px solid ${T.border}`,
@@ -338,7 +470,7 @@ export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone
             onMouseEnter={e => { if (!loading && input.trim()) { e.currentTarget.style.background = '#6d28d9'; e.currentTarget.style.transform = 'translateY(-1px)' } }}
             onMouseLeave={e => { e.currentTarget.style.background = loading || !input.trim() ? (darkMode ? '#334155' : '#e5e7eb') : '#7c3aed'; e.currentTarget.style.transform = 'translateY(0)' }}
           >
-            {loading ? '…' : 'Send'}
+            {loading ? '...' : 'Send'}
           </button>
         </div>
         <p style={{ color: T.textFaint, fontSize: '10px', marginTop: '6px', marginBottom: 0, fontFamily: FONT }}>

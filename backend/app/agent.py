@@ -246,6 +246,11 @@ async def run_agent_stream(
             for block, result in zip(tool_use_blocks, results)
         ]
 
+        # Send issue list to frontend so it can show Bookmark/Skip/Apply buttons
+        for block, result in zip(tool_use_blocks, results):
+            if block["name"] == "find_matching_issues" and isinstance(result, list) and result:
+                yield f"data: {json.dumps({'type': 'issues', 'result': result[:10]})}\n\n"
+
         # Feed assistant turn + tool results back
         messages.append({"role": "assistant", "content": content})
         messages.append({"role": "user", "content": tool_results})

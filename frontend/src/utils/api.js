@@ -15,6 +15,12 @@ export async function getDeveloper(username) {
   return res.json()
 }
 
+export async function getDeveloperStats(username) {
+  const res = await fetch(`${BASE}/developer/${username}/stats`)
+  if (!res.ok) return null
+  return res.json()
+}
+
 export async function searchIssues(username, opts = {}) {
   const params = new URLSearchParams({ username, ...opts })
   const res = await fetch(`${BASE}/search/issues?${params}`)
@@ -48,7 +54,7 @@ export async function getSkillGaps(username, repo) {
  * Stream a chat message. Calls onChunk(text) for each text delta,
  * onToolCall(name, input) when the agent calls a tool, and onDone() at end.
  */
-export async function streamChat({ username, message, sessionId, history, onChunk, onToolCall, onDone }) {
+export async function streamChat({ username, message, sessionId, history, onChunk, onToolCall, onIssues, onDone }) {
   const res = await fetch(`${BASE}/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -76,6 +82,7 @@ export async function streamChat({ username, message, sessionId, history, onChun
         const event = JSON.parse(line.slice(6))
         if (event.type === 'text') onChunk?.(event.content)
         else if (event.type === 'tool_call') onToolCall?.(event.tool, event.input)
+        else if (event.type === 'issues') onIssues?.(event.result)
         else if (event.type === 'done') onDone?.()
       } catch {}
     }

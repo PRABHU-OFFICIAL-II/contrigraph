@@ -27,15 +27,24 @@ async def _dispatch(name: str, args: dict):
 
         # If empty, auto-ingest issues for repos matching the skill/user's skills then retry
         if not issues:
-            repos_to_ingest = g.get_repos_without_issues(username, limit=5)
-            # Fallback: search GitHub dynamically for popular repos in the requested skill
-            if not repos_to_ingest and skill:
+            repos_to_ingest = []
+
+            if skill:
+                # Skill-specific query: search GitHub for that language's repos first
+                # Must come before get_repos_without_issues to avoid ingesting wrong-language repos
                 repos_to_ingest = ingestion.gh.search_repos_by_skill(skill, limit=3)
                 print(f"[find_matching_issues] GitHub search for skill={skill!r}: {repos_to_ingest}")
+                if repos_to_ingest:
+                    # Ensure developer has this skill so the Cypher query can match
+                    g.upsert_skill(skill, "language")
+                    g.link_developer_skill(username, skill)
+
+            if not repos_to_ingest:
+                repos_to_ingest = g.get_repos_without_issues(username, limit=5)
             # Last resort: fall back to popular Python repos
             if not repos_to_ingest:
                 repos_to_ingest = ["psf/requests", "pallets/flask"]
-            print(f"[find_matching_issues] no issues — auto-ingesting {repos_to_ingest}")
+            print(f"[find_matching_issues] no issues - auto-ingesting {repos_to_ingest}")
             for repo in repos_to_ingest:
                 try:
                     ingestion.ingest_repo_issues(repo)
@@ -60,6 +69,15 @@ async def _dispatch(name: str, args: dict):
                 limit=args.get("limit", 10),
             )
             print(f"[find_matching_issues] after relaxing complexity: {len(issues)} issues")
+
+        # Skill didn't match any issue (e.g. 'gcp' but issues are Python) — drop skill filter entirely
+        if not issues and skill:
+            issues = g.query_matching_issues(
+                username=username,
+                max_response_days=max_days,
+                limit=args.get("limit", 10),
+            )
+            print(f"[find_matching_issues] after dropping skill filter: {len(issues)} issues")
 
         # Auto-write VIEWED for every returned issue so history is always populated
         session_id = args.get("session_id", f"{username}-auto")

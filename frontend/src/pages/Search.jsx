@@ -115,6 +115,22 @@ export default function Search() {
           </div>
         </div>
 
+        {/* Nav links */}
+        <div style={{ padding: '8px 12px', borderBottom: `1px solid ${T.border2}`, display: 'flex', gap: '6px' }}>
+          <button
+            onClick={() => navigate(`/profile/${username}`)}
+            style={{
+              flex: 1, padding: '6px 8px', borderRadius: '7px', fontSize: '11px',
+              background: 'transparent', border: `1px solid ${T.border}`,
+              color: T.textMuted, cursor: 'pointer', fontFamily: FONT,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px',
+              transition: 'all 0.15s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = '#7c3aed'; e.currentTarget.style.color = '#7c3aed'; e.currentTarget.style.background = '#ede9fe' + '22' }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.textMuted; e.currentTarget.style.background = 'transparent' }}
+          >👤 Profile</button>
+        </div>
+
         {/* Knowledge Graph preview card */}
         <div style={{ padding: '12px 14px', borderBottom: `1px solid ${T.border2}` }}>
           <div style={{ color: T.textSubtle, fontSize: '10px', fontWeight: '700', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: '8px', fontFamily: FONT }}>
@@ -174,6 +190,37 @@ export default function Search() {
                 fontFamily: FONT,
                 opacity: 0, animation: `fadeIn 0.3s ease ${i * 0.04}s both`,
               }}>{s}</span>
+            ))}
+          </div>
+        </div>
+
+        {/* Graph tools quick actions */}
+        <div style={{ padding: '12px 14px', borderBottom: `1px solid ${T.border2}` }}>
+          <div style={{ color: T.textSubtle, fontSize: '10px', fontWeight: '700', letterSpacing: '0.07em', textTransform: 'uppercase', marginBottom: '8px', fontFamily: FONT }}>Graph Tools</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {[
+              { icon: '📊', label: 'Skill gap analysis', query: 'Analyse skill gaps for microsoft/vscode' },
+              { icon: '🔗', label: 'Related repos', query: 'Find repos related to my skills' },
+              { icon: '🕸', label: 'Connection path', query: 'Find my connection path to golang/go' },
+            ].map((action, i) => (
+              <button
+                key={i}
+                onClick={() => {
+                  const event = new CustomEvent('contrigraph-send', { detail: action.query })
+                  window.dispatchEvent(event)
+                }}
+                style={{
+                  width: '100%', padding: '6px 8px', borderRadius: '6px', fontSize: '11px',
+                  background: 'transparent', border: `1px solid ${T.border}`,
+                  color: T.textMuted, cursor: 'pointer', fontFamily: FONT, textAlign: 'left',
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  transition: 'all 0.15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor = '#7c3aed'; e.currentTarget.style.color = '#7c3aed'; e.currentTarget.style.background = '#ede9fe22' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = T.border; e.currentTarget.style.color = T.textMuted; e.currentTarget.style.background = 'transparent' }}
+              >
+                {action.icon} {action.label}
+              </button>
             ))}
           </div>
         </div>

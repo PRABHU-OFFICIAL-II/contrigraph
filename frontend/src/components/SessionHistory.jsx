@@ -11,11 +11,11 @@ const DARK = {
 }
 
 const ACTION_STYLES = {
-  viewed:     { icon: '👁', color: '#6b7280' },
-  bookmarked: { icon: '🔖', color: '#d97706' },
-  skipped:    { icon: '⏭', color: '#9ca3af' },
-  applied:    { icon: '✅', color: '#16a34a' },
-  applied_to: { icon: '✅', color: '#16a34a' },
+  viewed:     { icon: '👁',  color: '#818cf8', glow: 'rgba(129,140,248,0.55)', bg: 'rgba(129,140,248,0.12)' },
+  bookmarked: { icon: '🔖', color: '#fb923c', glow: 'rgba(251,146,60,0.65)',  bg: 'rgba(251,146,60,0.14)'  },
+  skipped:    { icon: '⏭',  color: '#f472b6', glow: 'rgba(244,114,182,0.65)', bg: 'rgba(244,114,182,0.13)' },
+  applied:    { icon: '✅', color: '#4ade80', glow: 'rgba(74,222,128,0.7)',   bg: 'rgba(74,222,128,0.14)'  },
+  applied_to: { icon: '✅', color: '#4ade80', glow: 'rgba(74,222,128,0.7)',   bg: 'rgba(74,222,128,0.14)'  },
 }
 
 export default function SessionHistory({ username, refreshTick, darkMode }) {
@@ -60,7 +60,14 @@ export default function SessionHistory({ username, refreshTick, darkMode }) {
               onMouseEnter={e => e.currentTarget.style.background = T.hover}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
-              <span style={{ fontSize: '11px', flexShrink: 0, marginTop: '1px' }}>{s.icon}</span>
+              <div style={{
+                width: '22px', height: '22px', borderRadius: '6px', flexShrink: 0,
+                background: s.bg,
+                border: `1px solid ${s.color}55`,
+                boxShadow: `0 0 7px 1px ${s.glow}, inset 0 0 4px ${s.color}22`,
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '11px', lineHeight: 1,
+              }}>{s.icon}</div>
               <div style={{ minWidth: 0, flex: 1 }}>
                 <div style={{
                   color: T.text, fontSize: '11px', lineHeight: '1.4',
