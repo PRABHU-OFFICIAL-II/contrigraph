@@ -144,12 +144,14 @@ function ToolSummary({ tools, T }) {
   )
 }
 
-function IssueActionCards({ issues, username, sessionId, onActionTaken, T }) {
-  const [actions, setActions] = useState({})
+function IssueActionCards({ issues, username, sessionId, onActionTaken, onActionUpdate, initialActions, T }) {
+  const [actions, setActions] = useState(initialActions || {})
 
   async function doAction(issue, action) {
     if (actions[issue.issue_id]) return
-    setActions(prev => ({ ...prev, [issue.issue_id]: action }))
+    const next = { ...actions, [issue.issue_id]: action }
+    setActions(next)
+    onActionUpdate?.(next)
     try {
       await recordAction(username, {
         issue_id: issue.issue_id,
@@ -179,7 +181,7 @@ function IssueActionCards({ issues, username, sessionId, onActionTaken, T }) {
         Quick actions — save to graph memory
       </div>
       <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '4px' }}>
-        {issues.slice(0, 6).map((issue, i) => {
+        {issues.slice(0, 10).map((issue, i) => {
           const taken = actions[issue.issue_id]
           const takenDef = actionDefs.find(a => a.key === taken)
           const cx = COMPLEXITY_COLORS[issue.complexity] || { bg: '#f3f4f6', text: '#6b7280' }
@@ -320,7 +322,7 @@ export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone
       onIssues: (result) => {
         setMessages(prev => {
           const updated = [...prev]
-          updated[updated.length - 1] = { ...updated[updated.length - 1], issues: result }
+          updated[updated.length - 1] = { ...updated[updated.length - 1], issues: result, actions: {} }
           return updated
         })
       },
@@ -371,6 +373,12 @@ export default function ChatPanel({ username, sessionId, onToolCall, onAgentDone
                     username={username}
                     sessionId={sessionId}
                     onActionTaken={onAgentDone}
+                    initialActions={m.actions || {}}
+                    onActionUpdate={next => setMessages(prev => {
+                      const updated = [...prev]
+                      updated[i] = { ...updated[i], actions: next }
+                      return updated
+                    })}
                     T={T}
                   />
                 )}

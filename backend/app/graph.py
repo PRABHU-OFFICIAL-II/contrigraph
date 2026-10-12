@@ -412,26 +412,20 @@ def query_developer_stats(username: str) -> dict:
     )
     skills = [{"name": row[0], "category": row[1]} for row in skills_res.result_set]
 
-    # Action counts — aggregate each hop separately to avoid Cartesian product
-    counts_res = graph.query(
-        """
-        MATCH (d:Developer {username: $username})
-        WITH d
-        OPTIONAL MATCH (d)-[v:VIEWED]->()
-        WITH d, count(v) AS viewed
-        OPTIONAL MATCH (d)-[b:BOOKMARKED]->()
-        WITH d, viewed, count(b) AS bookmarked
-        OPTIONAL MATCH (d)-[sk:SKIPPED]->()
-        WITH d, viewed, bookmarked, count(sk) AS skipped
-        OPTIONAL MATCH (d)-[ap:APPLIED_TO]->()
-        RETURN viewed, bookmarked, skipped, count(ap) AS applied
-        """,
-        {"username": username},
-    )
-    counts = {"viewed": 0, "bookmarked": 0, "skipped": 0, "applied": 0}
-    if counts_res.result_set:
-        row = counts_res.result_set[0]
-        counts = {"viewed": row[0], "bookmarked": row[1], "skipped": row[2], "applied": row[3]}
+    # Action counts — separate queries to avoid FalkorDB Cartesian product issues
+    def _count_edges(rel_type):
+        r = graph.query(
+            f"MATCH (d:Developer {{username: $username}})-[:{rel_type}]->() RETURN count(*)",
+            {"username": username},
+        )
+        return int(r.result_set[0][0]) if r.result_set else 0
+
+    counts = {
+        "viewed":     _count_edges("VIEWED"),
+        "bookmarked": _count_edges("BOOKMARKED"),
+        "skipped":    _count_edges("SKIPPED"),
+        "applied":    _count_edges("APPLIED_TO"),
+    }
 
     # Repos explored (from session actions)
     repos_res = graph.query(
