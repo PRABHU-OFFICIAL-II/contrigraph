@@ -4,7 +4,20 @@
 
 ContriGraph is an AI agent that uses a FalkorDB knowledge graph to match developers with open source issues perfectly suited to their skills — and remembers every interaction to get smarter over time.
 
-Built for **Graph Hacks 2026** by WeMakeDevs + FalkorDB · Tracks: Agent Memory and Coordination + Agents That Act on Connected Data.
+---
+
+## Hackathon Submission
+
+> **Graph Hacks 2026** — Organized by [WeMakeDevs](https://wemakedevs.org) + [FalkorDB](https://falkordb.com)
+>
+> **[View Hackathon](https://www.wemakedevs.org/hackathons/falkordb#challenge)** · Total Prize Pool: **$20,000**
+
+| Track | Prize | Our Submission |
+|---|---|---|
+| **Track 01** — Agents That Act on Connected Data | 📱 iPhone 18 Pro | Multi-hop Cypher agent that traverses Developer→Skill→Issue→Repo→Maintainer at query time |
+| **Track 02** — Agent Memory and Coordination | 🎮 PS5 + GTA VI | VIEWED/BOOKMARKED/SKIPPED/APPLIED_TO typed edges written to FalkorDB on every interaction |
+
+> **AI Disclosure (Rule 11):** This project was built with the assistance of an AI coding tool (Claude Code by Anthropic). All graph design, Cypher queries, architecture decisions, and product direction are by the developer.
 
 ---
 
@@ -194,8 +207,18 @@ contrigraph/
 
 ## Hackathon Tracks
 
-**Track 01 — Agents That Act on Connected Data**
-The agent executes multi-hop Cypher queries across FalkorDB at query time. It doesn't retrieve pre-built results — it traverses the live graph to find matches, rank by social proximity, and filter by maintainer activity.
+**[Graph Hacks 2026](https://www.wemakedevs.org/hackathons/falkordb#challenge)** by WeMakeDevs + FalkorDB
 
-**Track 02 — Agent Memory and Coordination**
-Every issue the agent surfaces is immediately written as a `VIEWED` edge in FalkorDB. Users can bookmark, skip, or mark issues as applied — each writes a typed relationship. These edges are read back in every subsequent query, so the agent never re-surfaces skipped issues and prioritises unseen ones.
+### Track 01 — Agents That Act on Connected Data *(iPhone 18 Pro)*
+
+The agent executes multi-hop Cypher queries across FalkorDB at query time. It doesn't retrieve pre-built results — it traverses the live graph to find matches, rank by social proximity, and filter by maintainer activity. Dynamic ingestion means the graph grows on demand: ask about TypeScript, get TypeScript repos searched on GitHub and ingested in real time.
+
+### Track 02 — Agent Memory and Coordination *(PS5 + GTA VI)*
+
+Every issue the agent surfaces is immediately written as a `VIEWED` edge in FalkorDB. Users can bookmark, skip, or mark issues as applied — each writes a typed relationship with timestamp and session ID. These edges are read back in every subsequent query, so the agent never re-surfaces skipped issues and prioritises unseen ones. The Profile page reads this graph memory to show stats across all sessions.
+
+---
+
+## About
+
+Built solo for Graph Hacks 2026. Graph design, Cypher queries, and product direction by **PRABHU-OFFICIAL-II**.
