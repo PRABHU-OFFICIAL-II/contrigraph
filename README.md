@@ -194,13 +194,13 @@ contrigraph/
 
 **[Graph Hacks 2026](https://www.wemakedevs.org/hackathons/falkordb#challenge)** by WeMakeDevs + FalkorDB
 
-### Track 01 — Agents That Act on Connected Data *(iPhone 18 Pro)*
+### Track 01 — Agents That Act on Connected Data
 
-The agent executes multi-hop Cypher queries across FalkorDB at query time. It doesn't retrieve pre-built results — it traverses the live graph to find matches, rank by social proximity, and filter by maintainer activity. Dynamic ingestion means the graph grows on demand: ask about TypeScript, get TypeScript repos searched on GitHub and ingested in real time.
+The core insight here is that open source matching is a graph problem, not a search problem. Instead of keyword filtering, ContriGraph executes a multi-hop Cypher traversal across FalkorDB at query time — Developer → Skill → Issue → Repository → Maintainer — ranking results by social proximity and maintainer responsiveness. When a skill isn't in the graph yet, the agent searches GitHub dynamically, ingests the relevant repos, and retries the traversal. The graph grows with every query.
 
-### Track 02 — Agent Memory and Coordination *(PS5 + GTA VI)*
+### Track 02 — Agent Memory and Coordination
 
-Every issue the agent surfaces is immediately written as a `VIEWED` edge in FalkorDB. Users can bookmark, skip, or mark issues as applied — each writes a typed relationship with timestamp and session ID. These edges are read back in every subsequent query, so the agent never re-surfaces skipped issues and prioritises unseen ones. The Profile page reads this graph memory to show stats across all sessions.
+Most recommendation tools forget you the moment you close the tab. ContriGraph treats every interaction as a first-class graph event. Each issue surfaced by the agent is immediately written as a `VIEWED` edge in FalkorDB with a timestamp and session ID. When a user bookmarks, skips, or marks an issue as applied, that too becomes a typed edge. Every subsequent query reads these edges — skipped issues are permanently filtered out, applied ones are deprioritised, and the agent's understanding of what you've already seen accumulates across sessions. The Profile page reflects this accumulated graph memory.
 
 ---
 
